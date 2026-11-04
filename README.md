@@ -1,158 +1,242 @@
-# Hanoi Mobile Internet Speed Prediction
+# Hanoi Signal
 
-COS40007 Design Project. Click any point on a map of Hanoi and get an estimated mobile internet speed (4G and 5G together), learned from Ookla speed tests and the distance to cell towers. Full background and decisions: `PROJECT_CONTEXT.md`.
+### Good places. Better signal.
 
-## Local application development
+An interactive map for exploring mobile internet performance across **Hanoi, Vietnam**. Choose a neighbourhood or click a location to see a speed estimate, its range, and the nearest cell locations.
 
-The application works independently of model training. **Demo mode is the default:** all displayed speeds, ranges and tower locations are simulated and visibly labelled. No raw data or trained model is needed.
+Built for **COS40007 — Artificial Intelligence Engineering** at Swinburne University of Technology.
 
-From the project root:
+> **Current status: local demo.** The web application runs while the team develops the prediction model. In demo mode, **speeds, ranges and tower locations are simulated**. No dataset or trained model is needed to start the website.
 
-```powershell
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-python -m pip install -r requirements-dev.txt
-python -m pip install -e . --no-deps
-python -m uvicorn backend.main:app --reload
+[Start the website](#start-the-website) · [Docker](#run-with-docker) · [Model integration](#connect-the-trained-model) · [Development checks](#development-checks) · [Documentation](#documentation)
+
+## What you can explore
+
+- **Hanoi only:** map navigation stays around the city, with predictions restricted to its administrative boundary.
+- **Pick a place:** click the map, enter coordinates, or try Hoàn Kiếm, West Lake, Cầu Giấy and Hà Đông.
+- **Understand the result:** download speed, upload speed, latency, a speed range and a quality level.
+- **See the surroundings:** clustered tower markers, connections to the three nearest towers and map layer controls.
+- **Use desktop or mobile:** a responsive interface with loading, error and reconnection states.
+
+The project treats **4G and 5G together**. It estimates typical area performance rather than running a live speed test or predicting a particular operator's network.
+
+## Start the website
+
+You need **two terminals**: one for the Python backend and one for the React frontend.
+
+### Before you start
+
+Install **Python 3.11** (the version used in CI) and **Node.js 22.13 or later in the Node 22 release line**, including npm. Clone or download this repository, then open a terminal in its root folder — the folder containing `README.md`, `backend/` and `frontend/`.
+
+Check your tools:
+
+```sh
+python --version
+node --version
+npm --version
 ```
 
-In a second terminal:
+On macOS/Linux, use `python3` if `python` is unavailable.
+
+### 1. Set up and start the backend
+
+**Windows · PowerShell** — run these commands from the project root:
 
 ```powershell
+# One-time setup
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+.\.venv\Scripts\python.exe -m pip install -e . --no-deps
+
+# Start the API in demo mode
+$env:SPEEDMAP_MODE = 'demo'
+.\.venv\Scripts\python.exe -m uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+These commands use the virtual environment directly; activating it is optional. Leave this terminal running.
+
+<details>
+<summary><strong>macOS / Linux instructions</strong></summary>
+
+Run from the project root:
+
+```sh
+# One-time setup
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements-dev.txt
+.venv/bin/python -m pip install -e . --no-deps
+
+# Start the API in demo mode
+SPEEDMAP_MODE=demo .venv/bin/python -m uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+Leave this terminal running.
+
+</details>
+
+### 2. Start the frontend in a second terminal
+
+Open a **new terminal in the project root**, then run:
+
+```sh
 cd frontend
 npm ci
 npm run dev
 ```
 
-Open **http://127.0.0.1:5173**. API documentation is at **http://127.0.0.1:8000/docs**.
-With Docker Desktop installed, `docker compose up --build` serves the same demo at **http://127.0.0.1:8080**.
+Leave this terminal running too. `npm ci` installs the frontend dependencies from the lockfile; it is needed on first setup and when dependencies change.
 
-The explorer includes neighbourhood shortcuts, coordinate entry, click-to-predict, the three nearest tower connections, layer toggles and a responsive results panel. The existing Hanoi polygon controls prediction eligibility. The street map and optional web fonts need internet access; the local API does not.
+### 3. Open the website
 
-See [application development](docs/application.md) for model handoff, environment settings, tests and CI. The original training workflow remains separate from application CI.
+| Service | Local address |
+| --- | --- |
+| **Web application** | **[http://127.0.0.1:5173](http://127.0.0.1:5173)** |
+| Interactive API documentation | [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) |
+| API health and operating mode | [http://127.0.0.1:8000/api/health](http://127.0.0.1:8000/api/health) |
 
-## Project structure
+Choose **Hoàn Kiếm** to try your first prediction. The header should show **Demo mode**.
 
-```
-Group project/
-├── src/speedmap/                 Python package: ALL reusable code lives here
-│   ├── config.py                 settings shared by everyone (paths, Hanoi box, 3GPP, levels, features)
-│   ├── artifacts.py              save_model / load_model / list_runs   (ready to use)
-│   ├── data/
-│   │   ├── ookla.py              load + clean Ookla tiles                     P1
-│   │   ├── towers.py             OpenCelliD -> Hanoi towers (4G+5G)            P1
-│   │   └── osm.py                OPTIONAL OpenStreetMap features              P1
-│   ├── features/
-│   │   ├── spatial.py            TowerIndex (BallTree), spatial blocks        P1
-│   │   ├── tower_features.py     features for any points (shared w/ backend)  P1
-│   │   └── build.py              -> hanoi_train.csv                           P1
-│   ├── physics/
-│   │   ├── propagation.py        3GPP path loss                               P2
-│   │   └── link_budget.py        SINR, Shannon -> theoretical speed           P2
-│   ├── models/
-│   │   ├── base.py               common fit / predict interface
-│   │   ├── baselines.py          KNN, Random Forest                           P2
-│   │   ├── hybrid.py             main model: 3GPP + XGBoost; ablations        P2
-│   │   ├── conformal.py          80% confidence range                         P2
-│   │   └── registry.py           all models by name
-│   ├── evaluation/
-│   │   ├── metrics.py            MAE, RMSE, level accuracy, coverage          P2
-│   │   ├── cv.py                 spatial block cross-validation               P2
-│   │   └── plots.py              figures for the report                       P2
-│   └── inference/
-│       └── predictor.py          predict one clicked point                    P3
-├── notebooks/                    where data is explored and models are TRAINED
-│   ├── 01_explore_ookla.ipynb    P1
-│   ├── 02_prepare_towers.ipynb   P1
-│   ├── 03_build_features.ipynb   P1   -> data/processed/hanoi_train.csv
-│   ├── 04_physics_check.ipynb    P2
-│   ├── 05_train_baselines.ipynb  P2   -> artifacts/models/knn, random_forest
-│   ├── 06_train_hybrid.ipynb     P2   -> artifacts/models/hybrid   (used by the backend)
-│   ├── 07_evaluate_compare.ipynb P2   -> comparison table + figures
-│   └── 08_test_predictor.ipynb   P3   loads the saved model like the backend
-├── backend/main.py               FastAPI: /api/health, /api/towers, /api/predict    P3
-├── frontend/                     React + Vite + react-leaflet map                   P3
-├── scripts/
-│   ├── fetch_ookla_hanoi.py      download Ookla tiles for Hanoi (done)
-│   └── run_pipeline.py           run everything without notebooks
-├── tests/                        pytest: physics, features, artifacts
-├── docs/
-│   ├── data_contract.md          columns of hanoi_train.csv (P1 <-> P2)
-│   └── api_contract.md           JSON of /api/predict and the saved bundle (P2 <-> P3)
-├── data/raw | interim | processed
-├── artifacts/models | reports    saved models, metrics, figures
-└── docx/                         specification and planning documents
+**Next time:** skip the one-time installation commands. Start the backend and run `npm run dev` from `frontend/`. Stop each server with **Ctrl+C** in its terminal.
+
+Street-map tiles need an internet connection. The demo prediction service runs locally; optional web fonts load separately and fall back to system fonts if unavailable.
+
+## Run with Docker
+
+A Compose configuration is included to run the backend and frontend together. Install Docker Desktop with Docker Compose, start Docker, and run from the project root:
+
+```sh
+docker compose up --build
 ```
 
-Rules:
-- **Notebooks call functions from `src/speedmap`; they do not define important logic themselves.** Then the backend can reuse exactly the same code.
-- Files marked `TODO` / `NotImplementedError` are for the team to write.
-- Names in English, comments in Vietnamese only where needed.
+Open **[http://127.0.0.1:8080](http://127.0.0.1:8080)**. Nginx serves the frontend and forwards API requests to FastAPI. The Compose stack uses demo mode.
 
-## Setup
+Stop an existing backend on port `8000` before starting Compose; both setups use that port. To stop and remove the Compose containers, run this in another terminal:
 
-```bash
-python -m venv .venv
-.venv\Scripts\activate            # Windows   (macOS/Linux: source .venv/bin/activate)
-pip install -r requirements.txt
-pip install -e .                  # makes `import speedmap` work everywhere
+```sh
+docker compose down
 ```
 
-## Work split
+## How it fits together
 
-| Person | Owns | Notebooks | Delivers |
-|---|---|---|---|
-| **1. Data** | `data/`, `features/`, tests/test_features.py | 01, 02, 03 | `hanoi_train.csv` following `docs/data_contract.md` |
-| **2. Models** | `physics/`, `models/`, `evaluation/`, tests/test_physics.py | 04, 05, 06, 07 | saved `hybrid` bundle + comparison table and figures |
-| **3. Application** | `inference/`, `backend/`, `frontend/` | 08 | working map demo following `docs/api_contract.md` |
-
-Person 2 and 3 can start before the data is ready:
-- Person 2: physics code can be written and tested now with `tests/test_physics.py` (worked example 400 m + 800 m -> about 222.9 Mbps).
-- Person 3: build the frontend against the example JSON in `docs/api_contract.md`.
-
-## Workflow
-
-```
-01 explore  ->  02 towers  ->  03 features  ->  04 physics  ->  05 baselines  ->  06 hybrid (SAVE)  ->  07 compare
-                                                                                        |
-                                                                08 test predictor  ->  backend  ->  frontend
+```text
+React + Leaflet map
+        |
+        |  /api/predict, /api/towers, /api/boundary
+        v
+FastAPI backend
+        |
+        +-- Demo mode: deterministic simulated data
+        |
+        +-- Model mode: shared features -> saved model bundle
 ```
 
-## Training in notebooks and saving models
+The planned model combines **3GPP physics and XGBoost**, with KNN and Random Forest baselines and an **80% conformal prediction range**. Demo ranges are illustrative and have no measured confidence coverage.
 
-```python
-from speedmap.artifacts import save_model, load_model, list_runs
+## Connect the trained model
 
-save_model(bundle, "hybrid", metrics={"mae": 41.2}, params=model.get_params())
-# -> artifacts/models/hybrid/20261020-101500/model.joblib + metadata.json
+The backend defaults to `SPEEDMAP_MODE=demo`. To use `model` mode, the model team must provide the saved bundle, its metadata, the processed tower table and the completed shared physics code. Install any additional estimator dependencies in the backend's Python environment.
 
-bundle, meta = load_model("hybrid")                     # newest run
-bundle, meta = load_model("hybrid", "20261020-101500")  # a specific run
-list_runs("hybrid")
+Follow the **[model handoff guide](docs/application.md#switch-to-the-teams-trained-model)** and **[API contract](docs/api_contract.md)** for the expected files, bundle interface and environment settings.
+
+Model mode never silently falls back to demo data. An incomplete or incompatible model setup leaves predictions unavailable and records the cause in the backend logs. Pin the agreed model run with `SPEEDMAP_MODEL_RUN`; otherwise the existing registry's `LATEST` pointer is used.
+
+## Development checks
+
+**Backend · Windows PowerShell, from the project root:**
+
+```powershell
+.\.venv\Scripts\python.exe -m ruff check backend src/speedmap/inference tests/test_api.py tests/test_predictor.py
+.\.venv\Scripts\python.exe -m pytest tests/test_api.py tests/test_predictor.py tests/test_boundary.py tests/test_features.py tests/test_artifacts.py -q
 ```
 
-Every save creates a new timestamped folder, so earlier runs are never overwritten. The backend always loads the newest run unless a run id is given.
+On macOS/Linux, replace `.\.venv\Scripts\python.exe` with `.venv/bin/python`.
 
-## Run the demo
+**Frontend · from `frontend/`:**
 
-```bash
-uvicorn backend.main:app --reload          # http://localhost:8000/docs
-cd frontend && npm install && npm run dev  # http://localhost:5173
+```sh
+npm run lint
+npm run build
 ```
 
-## Tests
+The production build is written to `frontend/dist/`.
 
-```bash
-pytest                       # all
-pytest tests/test_physics.py # one file
+**Desktop and mobile browser tests · from `frontend/`:**
+
+```sh
+# First time: install the test browser
+npx playwright install chromium
+
+# Use the backend virtual environment, then run the tests
+npm run test:e2e
 ```
-`test_artifacts.py` passes already; the others pass once the TODOs are written.
 
-## CI pipeline (Group Task 2)
+Browser tests can reuse running local servers in demo mode. If you have stopped them, activate the backend virtual environment in the test terminal first so Playwright can start Python itself: `..\.venv\Scripts\Activate.ps1` on Windows or `source ../.venv/bin/activate` on macOS/Linux.
 
-`.github/workflows/train.yml` runs on every push / pull request to `main` and on manual trigger (Actions → Train ML Model → Run workflow):
-checkout → set up Python 3.11 → cache pip → `pip install -r requirements.txt` → `python model.py` → upload `model_results.png` and `metrics.txt` as the artefact **model-results**.
+Application checks work without a trained model. The full `pytest` suite also includes physics tests for model components still under development; the focused command above matches application CI.
 
-`model.py` trains a small TensorFlow neural network on `data/ci/hanoi_train.csv` (a snapshot of `data/processed/hanoi_train.csv`; refresh it after rebuilding the data).
- 
- 
+## Repository guide
+
+```text
+backend/                  FastAPI endpoints, response schemas and demo predictor
+frontend/                 React interface, Leaflet map and browser tests
+src/speedmap/             Shared Python package
+  data/                   Dataset loading, tower processing and Hanoi boundary
+  features/               Shared spatial and tower features
+  physics/                3GPP propagation and link budget
+  models/                 Baselines, hybrid model and conformal ranges
+  evaluation/             Spatial cross-validation, metrics and figures
+  inference/              Saved-model adapter used by the backend
+notebooks/                Data exploration, training and evaluation
+scripts/                  Data downloads and pipeline entry points
+data/                     Raw, interim, processed and reference data
+artifacts/                Model runs and report figures
+tests/                    Python tests
+docs/                     Application guide and shared contracts
+.github/workflows/        Application checks and training workflow
+compose.yaml              Local Docker stack
+```
+
+Reusable logic belongs in `src/speedmap/`; notebooks call those functions so training and inference can share the same code. The older `ml/` directory contains earlier prototypes. Some data and model components remain marked `TODO` or `NotImplementedError`.
+
+### Team responsibilities
+
+| Area | Responsibilities |
+| --- | --- |
+| Data and testing | Data ingestion and cleaning, tower features, dataset contract and end-to-end testing. |
+| Models and MLOps | Physics, baselines, hybrid model, uncertainty ranges, evaluation, model registry and retraining. |
+| Application and DevOps | Frontend, backend, prediction integration, API contract, CI, Docker and deployment preparation. |
+
+### Continuous integration
+
+| Workflow | Purpose |
+| --- | --- |
+| [Application CI](.github/workflows/application.yml) | Python lint and interface tests, notebook-output checks, frontend lint/build, browser tests and a Docker Compose smoke test. |
+| [Train ML Model](.github/workflows/train.yml) | The separate Group Task 2 TensorFlow workflow. Runs `model.py` on `data/ci/hanoi_train.csv` and uploads the results. |
+
+Both workflows target pushes and pull requests to `main` and support manual runs. Public deployment is not configured yet.
+
+## Troubleshooting
+
+| Problem | What to check |
+| --- | --- |
+| The page opens, but the service is offline | Keep the backend terminal running. Check the health URL, then click **Reconnect**. |
+| `No module named speedmap` | Run the editable installation command from the project root using the same virtual environment as the backend. |
+| Port `5173` or `8000` is already in use | Stop the other local instance. Keep the documented ports unless you also update the proxy configuration. |
+| The map background does not load | Check internet access and whether OpenStreetMap tile requests are blocked. Neighbourhood shortcuts and coordinate entry still work. |
+| A location is rejected | Predictions are available only inside Hanoi's administrative boundary, including when using browser location. |
+| The health response says `model_loaded: false` | This is expected in demo mode. Check `ready` and `mode` as well. |
+| Model mode returns `503` | Check the backend logs and follow the model handoff guide. Confirm that the bundle, tower data and estimator dependencies are available. |
+| Browser tests cannot start Python | Activate the backend virtual environment in the test terminal, or start the backend separately before running the tests. |
+
+## Documentation
+
+- [Application setup, model handoff and environment settings](docs/application.md)
+- [API endpoints and saved-model bundle contract](docs/api_contract.md)
+- [Training data contract](docs/data_contract.md)
+- [Project background, scope and decisions](PROJECT_CONTEXT.md)
+
+## Data and attribution
+
+The planned prediction pipeline uses **[Ookla Open Data](https://github.com/teamookla/ookla-open-data)** (CC BY-NC-SA 4.0) and **[OpenCelliD](https://opencellid.org/)** (CC BY-SA 4.0). The Hanoi boundary comes from **[geoBoundaries](https://www.geoboundaries.org/)** (CC BY 4.0). Street-map tiles are © **[OpenStreetMap contributors](https://www.openstreetmap.org/copyright)**.
+
+These credits describe the project data sources. The current demo's speeds and tower locations are simulated.
