@@ -2,6 +2,7 @@ __pycache__/
 *.pyc
 .ipynb_checkpoints/
 .venv/
+.run/
 *.egg-info/
 node_modules/
 frontend/dist/

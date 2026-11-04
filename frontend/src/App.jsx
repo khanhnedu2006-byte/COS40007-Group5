@@ -17,7 +17,7 @@ export default function App() {
   const [towers, setTowers] = useState([]);
   const [boundary, setBoundary] = useState(null);
   const [health, setHealth] = useState(null);
-  const [showTowers, setShowTowers] = useState(true);
+  const [showTowers, setShowTowers] = useState(false);
   const [showBoundary, setShowBoundary] = useState(true);
   const [result, setResult] = useState(null);
   const [selected, setSelected] = useState(null);

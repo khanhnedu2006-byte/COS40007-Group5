@@ -2,10 +2,13 @@ import { useCallback, useRef, useState } from "react";
 import Icon from "./Icon.jsx";
 import MapScene from "./MapScene.jsx";
 import { HANOI_CENTER } from "../hanoi.js";
+import { BASEMAPS } from "../basemaps.js";
+import { QUALITY } from "./Legend.jsx";
 
 export default function SpeedMap({ towers, boundary, area, showTowers, showBoundary, onToggleTowers, onToggleBoundary, result, selected, navigation, loading, onMapClick, disabled, demo }) {
   const mapRef = useRef(null);
   const [layersOpen, setLayersOpen] = useState(false);
+  const [mapStyle, setMapStyle] = useState("signal");
   const [coordinates, setCoordinates] = useState("");
   const [locationError, setLocationError] = useState("");
   const [locating, setLocating] = useState(false);
@@ -38,7 +41,7 @@ export default function SpeedMap({ towers, boundary, area, showTowers, showBound
   return (
     <section className="map-area" aria-label="Interactive map of Hanoi">
       <MapScene towers={towers} boundary={boundary} area={area} showTowers={showTowers} showBoundary={showBoundary}
-        result={result} selected={selected} navigation={navigation} onMapClick={onMapClick}
+        mapStyle={mapStyle} result={result} selected={selected} navigation={navigation} onMapClick={onMapClick}
         disabled={disabled} mapRef={mapRef} onTileError={handleTileError} onZoomChange={setZoom} />
 
       <div className="map-top-tools">
@@ -51,14 +54,26 @@ export default function SpeedMap({ towers, boundary, area, showTowers, showBound
         <div className="layer-tools">
           <button className={`map-button layers-button ${layersOpen ? "active" : ""}`} aria-label="Map layers" aria-expanded={layersOpen} onClick={() => setLayersOpen((value) => !value)}><Icon name="layers" size={18} /><span>Layers</span></button>
           {layersOpen && <div className="layers-popover"><span className="eyebrow">MAP LAYERS</span>
+            <fieldset className="basemap-options"><legend>Map style</legend>
+              {Object.entries(BASEMAPS).map(([value, style]) => <label key={value}>
+                <input type="radio" name="map-style" value={value} checked={mapStyle === value}
+                  onChange={() => { setTileError(false); setMapStyle(value); }} />
+                <span>{style.label}</span>
+              </label>)}
+            </fieldset>
             <label><input type="checkbox" checked={showTowers} onChange={onToggleTowers} /><span>{demo ? "Demo towers" : "Cell locations"}</span><span className="layer-dot" /></label>
             <label><input type="checkbox" checked={showBoundary} onChange={onToggleBoundary} /><span>Hanoi boundary</span><span className="layer-dash" /></label>
           </div>}
         </div>
       </div>
-      {(locationError || tileError) && <div className="map-notice" role="alert"><Icon name="info" size={17} /><span>{locationError || "Map tiles couldn't load. An internet connection is needed for the street map; location estimates still work."}</span><button className="icon-button" aria-label="Dismiss map message" onClick={() => { setLocationError(""); setTileError(false); }}><Icon name="close" size={16} /></button></div>}
-      <div className="map-place-label" aria-hidden="true"><span className="map-location-line" /><span>HÀ NỘI</span><small>21°01′ N · 105°51′ E</small></div>
-      <div className="map-key"><span className="eyebrow">A LITTLE MAP CONTEXT</span><div><span className="key-tower" />{demo ? "Simulated tower" : "Estimated cell location"}</div><div><span className="key-boundary" />Hanoi city boundary</div></div>
+      {(locationError || tileError) && <div className="map-notice" role="alert"><Icon name="info" size={17} /><span>{locationError || "Map tiles couldn't load. Check your connection or try Detailed streets under Layers. Location estimates still work."}</span><button className="icon-button" aria-label="Dismiss map message" onClick={() => { setLocationError(""); setTileError(false); }}><Icon name="close" size={16} /></button></div>}
+      <div className="map-key" aria-label="Download speed quality legend"><span className="eyebrow">DOWNLOAD QUALITY · MBPS</span>
+        <div className="map-quality-key">{QUALITY.map((quality) => <div key={quality.name}>
+          <span className="map-quality-label"><i style={{ backgroundColor: quality.color }} />{quality.name}</span><small>{quality.range}</small>
+        </div>)}</div>
+        {showBoundary && <div className="map-context-key"><span className="key-boundary" />Hanoi city boundary</div>}
+        {showTowers && <div className="map-context-key"><span className="key-tower" />{demo ? "Simulated towers" : "Estimated cell locations"}</div>}
+      </div>
       <div className="map-hint" role="status"><span className={loading ? "hint-spinner" : "hint-dot"} />{disabled ? "Waiting for the local service" : loading ? "Exploring your location…" : selected ? "Explore another location inside Hanoi" : "Hanoi only. Click inside the city boundary."}</div>
       <div className="map-controls">
         <span className="compass" aria-hidden="true">N<span>↑</span></span>

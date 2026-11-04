@@ -15,14 +15,29 @@ Built for **COS40007 — Artificial Intelligence Engineering** at Swinburne Univ
 - **Hanoi only:** map navigation stays around the city, with predictions restricted to its administrative boundary.
 - **Pick a place:** click the map, enter coordinates, or try Hoàn Kiếm, West Lake, Cầu Giấy and Hà Đông.
 - **Understand the result:** download speed, upload speed, latency, a speed range and a quality level.
-- **See the surroundings:** clustered tower markers, connections to the three nearest towers and map layer controls.
+- **Focus on performance:** a quiet basemap and a selected location coloured by download quality. Tower markers and nearest-tower connections are optional under Layers.
 - **Use desktop or mobile:** a responsive interface with loading, error and reconnection states.
 
 The project treats **4G and 5G together**. It estimates typical area performance rather than running a live speed test or predicting a particular operator's network.
 
 ## Start the website
 
-You need **two terminals**: one for the Python backend and one for the React frontend.
+On Windows, use the double-click launchers below. Manual startup with two terminals is also available.
+
+### Double-click on Windows
+
+Install the Python and Node.js prerequisites listed below, then open this folder in File Explorer:
+
+| Launcher | What it starts |
+| --- | --- |
+| **[demo.bat](demo.bat)** | The website with simulated predictions. No dataset or model required. |
+| **[start.bat](start.bat)** | The website using the team's actual saved model and tower data. |
+
+Double-click the launcher you want. On the first run, it creates `.venv/` and installs dependencies automatically; this needs internet access. Later runs skip installation unless requirements or the frontend lockfile change. The browser opens at **http://127.0.0.1:5173** when both services are ready.
+
+Keep the launcher window open while using the website. Press **Enter** there to stop the services it started. If the same mode is already running, the launcher reopens it. Close the existing launcher or manually started servers before switching modes. Startup logs are saved under `.run/`.
+
+`start.bat` does not train a model or substitute demo data: it reports missing model files or startup errors. See [model integration](#connect-the-trained-model) before using it. It respects `SPEEDMAP_MODEL_NAME` and `SPEEDMAP_MODEL_RUN` when set; otherwise it uses `hybrid` and its `LATEST` pointer. Additional model dependencies can be listed in `requirements-model.txt`.
 
 ### Before you start
 
@@ -38,7 +53,7 @@ npm --version
 
 On macOS/Linux, use `python3` if `python` is unavailable.
 
-### 1. Set up and start the backend
+### 1. Set up and start the backend manually
 
 **Windows · PowerShell** — run these commands from the project root:
 
@@ -98,7 +113,7 @@ Choose **Hoàn Kiếm** to try your first prediction. The header should show **D
 
 **Next time:** skip the one-time installation commands. Start the backend and run `npm run dev` from `frontend/`. Stop each server with **Ctrl+C** in its terminal.
 
-Street-map tiles need an internet connection. The demo prediction service runs locally; optional web fonts load separately and fall back to system fonts if unavailable.
+Map tiles need an internet connection. The default **Signal focus** style is intentionally quiet; switch to **Detailed streets** under Layers when you need more map detail. The demo prediction service runs locally; optional web fonts load separately and fall back to system fonts if unavailable.
 
 ## Run with Docker
 
@@ -145,8 +160,9 @@ Model mode never silently falls back to demo data. An incomplete or incompatible
 **Backend · Windows PowerShell, from the project root:**
 
 ```powershell
-.\.venv\Scripts\python.exe -m ruff check backend src/speedmap/inference tests/test_api.py tests/test_predictor.py
-.\.venv\Scripts\python.exe -m pytest tests/test_api.py tests/test_predictor.py tests/test_boundary.py tests/test_features.py tests/test_artifacts.py -q
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+.\.venv\Scripts\python.exe -m ruff check backend src/speedmap/inference scripts/launch.py tests/test_api.py tests/test_predictor.py tests/test_launcher.py
+.\.venv\Scripts\python.exe -m pytest tests/test_api.py tests/test_predictor.py tests/test_launcher.py tests/test_boundary.py tests/test_features.py tests/test_artifacts.py -q
 ```
 
 On macOS/Linux, replace `.\.venv\Scripts\python.exe` with `.venv/bin/python`.
@@ -222,7 +238,7 @@ Both workflows target pushes and pull requests to `main` and support manual runs
 | The page opens, but the service is offline | Keep the backend terminal running. Check the health URL, then click **Reconnect**. |
 | `No module named speedmap` | Run the editable installation command from the project root using the same virtual environment as the backend. |
 | Port `5173` or `8000` is already in use | Stop the other local instance. Keep the documented ports unless you also update the proxy configuration. |
-| The map background does not load | Check internet access and whether OpenStreetMap tile requests are blocked. Neighbourhood shortcuts and coordinate entry still work. |
+| The map background does not load | Check internet access or switch to **Detailed streets** under Layers. Neighbourhood shortcuts and coordinate entry still work. |
 | A location is rejected | Predictions are available only inside Hanoi's administrative boundary, including when using browser location. |
 | The health response says `model_loaded: false` | This is expected in demo mode. Check `ready` and `mode` as well. |
 | Model mode returns `503` | Check the backend logs and follow the model handoff guide. Confirm that the bundle, tower data and estimator dependencies are available. |
@@ -237,6 +253,6 @@ Both workflows target pushes and pull requests to `main` and support manual runs
 
 ## Data and attribution
 
-The planned prediction pipeline uses **[Ookla Open Data](https://github.com/teamookla/ookla-open-data)** (CC BY-NC-SA 4.0) and **[OpenCelliD](https://opencellid.org/)** (CC BY-SA 4.0). The Hanoi boundary comes from **[geoBoundaries](https://www.geoboundaries.org/)** (CC BY 4.0). Street-map tiles are © **[OpenStreetMap contributors](https://www.openstreetmap.org/copyright)**.
+The planned prediction pipeline uses **[Ookla Open Data](https://github.com/teamookla/ookla-open-data)** (CC BY-NC-SA 4.0) and **[OpenCelliD](https://opencellid.org/)** (CC BY-SA 4.0). The Hanoi boundary comes from **[geoBoundaries](https://www.geoboundaries.org/)** (CC BY 4.0). The default basemap is © **[Stadia Maps](https://stadiamaps.com/attribution/)**, **[OpenMapTiles](https://openmaptiles.org/)** and **[OpenStreetMap contributors](https://www.openstreetmap.org/copyright)**; the detailed style uses OpenStreetMap tiles. Local Stadia development needs no API key; public hosting needs domain authentication as described in the [application guide](docs/application.md).
 
 These credits describe the project data sources. The current demo's speeds and tower locations are simulated.

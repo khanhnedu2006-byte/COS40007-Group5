@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 test.beforeEach(async ({ page }) => {
   // The application must be usable without depending on third-party tile/font availability.
-  await page.route(/https:\/\/(.*\.)?(tile\.openstreetmap\.org|fonts\.googleapis\.com|fonts\.gstatic\.com)\//, (route) => route.abort());
+  await page.route(/https:\/\/(.*\.)?(tile\.openstreetmap\.org|tiles\.stadiamaps\.com|fonts\.googleapis\.com|fonts\.gstatic\.com)\//, (route) => route.abort());
   await page.goto("/");
   await expect(page.getByText("Demo mode", { exact: true })).toBeVisible();
 });
@@ -86,6 +86,9 @@ test("map clicks, layer toggles and project information work", async ({ page }) 
   await expect(page.locator(".result-card")).toBeVisible();
   await page.getByRole("button", { name: "Map layers", exact: true }).click();
   const towers = page.getByRole("checkbox", { name: "Demo towers", exact: true });
+  await expect(towers).not.toBeChecked();
+  await towers.check();
+  await expect(towers).toBeChecked();
   await towers.uncheck();
   await expect(towers).not.toBeChecked();
   await page.getByRole("checkbox", { name: "Hanoi boundary", exact: true }).uncheck();
@@ -94,6 +97,24 @@ test("map clicks, layer toggles and project information work", async ({ page }) 
   await expect(page.getByRole("dialog")).toContainText("no measured confidence coverage");
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).not.toBeVisible();
+});
+
+test("a quiet basemap and selected speed take priority over optional tower details", async ({ page }) => {
+  await page.getByRole("button", { name: "Map layers", exact: true }).click();
+  await expect(page.getByRole("radio", { name: "Signal focus", exact: true })).toBeChecked();
+  await expect(page.getByRole("checkbox", { name: "Demo towers", exact: true })).not.toBeChecked();
+  await page.getByRole("button", { name: "Map layers", exact: true }).click();
+  await page.getByRole("button", { name: "Hoàn Kiếm", exact: true }).click();
+  await expect(page.locator(".selected-tooltip")).toContainText("141.9 Mbps");
+  await expect(page.locator(".selected-tooltip")).toContainText("Good connection");
+  await expect(page.locator(".selected-tooltip")).toContainText("simulated");
+  await expect(page.locator(".cluster-count")).toHaveCount(0);
+  await expect(page.getByLabel("Download speed quality legend")).toBeVisible();
+  await page.getByRole("button", { name: "Map layers", exact: true }).click();
+  await page.getByRole("radio", { name: "Detailed streets", exact: true }).check();
+  await expect(page.locator(".leaflet-tile").first()).toHaveAttribute("src", /tile\.openstreetmap\.org/);
+  await page.getByRole("radio", { name: "Signal focus", exact: true }).check();
+  await expect(page.locator(".leaflet-tile").first()).toHaveAttribute("src", /tiles\.stadiamaps\.com/);
 });
 
 test("a slower previous prediction cannot overwrite the latest selection", async ({ page }) => {

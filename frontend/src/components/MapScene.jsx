@@ -1,6 +1,7 @@
 import { memo, useEffect, useMemo, useRef } from "react";
 import { GeoJSON, MapContainer, Polygon, ScaleControl, TileLayer, useMap, useMapEvents } from "react-leaflet";
 import { HANOI_BOUNDS, HANOI_CENTER } from "../hanoi.js";
+import { BASEMAPS } from "../basemaps.js";
 import ClickHandler from "./ClickHandler.jsx";
 import TowerLayer from "./TowerLayer.jsx";
 import SelectedPoint from "./SelectedPoint.jsx";
@@ -42,7 +43,7 @@ function MapActions({ navigation, mapRef, area, onZoomChange }) {
 }
 
 // Form keystrokes and popovers must never update Leaflet's layers.
-const MapScene = memo(function MapScene({ towers, boundary, area, showTowers, showBoundary, result, selected, navigation, onMapClick, disabled, mapRef, onTileError, onZoomChange }) {
+const MapScene = memo(function MapScene({ towers, boundary, area, showTowers, showBoundary, mapStyle, result, selected, navigation, onMapClick, disabled, mapRef, onTileError, onZoomChange }) {
   const tileFailures = useRef(0);
   const tileEvents = useMemo(() => ({
     tileerror: () => { if (++tileFailures.current >= 3) onTileError(true); },
@@ -52,8 +53,8 @@ const MapScene = memo(function MapScene({ towers, boundary, area, showTowers, sh
     maxBounds={HANOI_BOUNDS} maxBoundsViscosity={1} inertia={false}
     zoomAnimation={false} fadeAnimation={false} markerZoomAnimation={false}
     wheelDebounceTime={100} preferCanvas zoomControl={false} className="map">
-    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    <TileLayer key={mapStyle} url={BASEMAPS[mapStyle].url}
+      attribution={BASEMAPS[mapStyle].attribution}
       bounds={HANOI_BOUNDS} noWrap updateWhenIdle updateWhenZooming={false} keepBuffer={1}
       eventHandlers={tileEvents} />
     <MapActions navigation={navigation} mapRef={mapRef} area={area} onZoomChange={onZoomChange} />
@@ -61,7 +62,7 @@ const MapScene = memo(function MapScene({ towers, boundary, area, showTowers, sh
     {area && <Polygon positions={area.mask} interactive={false} pathOptions={MASK_STYLE} />}
     {showBoundary && boundary && <GeoJSON data={boundary} interactive={false} style={BOUNDARY_STYLE} />}
     {showTowers && <TowerLayer towers={towers} />}
-    {selected && !selected.outside && <SelectedPoint result={result} selected={selected} />}
+    {selected && !selected.outside && <SelectedPoint result={result} selected={selected} showTowers={showTowers} />}
     <ScaleControl position="bottomleft" imperial={false} />
   </MapContainer>;
 });

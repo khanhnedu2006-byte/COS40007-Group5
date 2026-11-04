@@ -4,6 +4,14 @@ The frontend and backend can be developed while the data/model work continues. T
 
 ## Local run
 
+On Windows, double-click `demo.bat` for simulated predictions or `start.bat` for a real saved-model bundle. `scripts/launch.cmd` finds Python and calls the shared `scripts/launch.py` manager. The manager creates `.venv/` if needed, installs `requirements-app.txt` (demo) or `requirements-model.txt` (real model), installs the shared package, and runs `npm ci` when needed. Dependency-file hashes under `.run/` prevent reinstalling on every launch.
+
+The launcher starts Python and Node directly, waits for `/api/health` through both ports, checks the requested prediction mode and opens the browser. Press Enter in its console to stop its own services. Ready services can be reused, but a running demo backend cannot be reused as model mode. Port conflicts and failed model readiness produce errors; logs are written to `.run/`. The launchers require Python and Node/npm to be installed first. Model files and completed shared physics still come from the model team.
+
+For a startup/cleanup smoke check without opening a browser, run `python scripts/launch.py demo --smoke-test`. A real-model check is `python scripts/launch.py model --smoke-test` once artifacts are available. The checks use the normal local ports and leave reused services running.
+
+### Manual startup
+
 Use Python 3.11+ and Node 22.13+ (the application lint tool requires a recent Node version).
 From the repository root, activate your virtual environment, then:
 
@@ -23,7 +31,11 @@ npm run dev
 
 Visit http://127.0.0.1:5173. Vite proxies `/api` to `127.0.0.1:8000`. Both development servers bind locally. Port 5173 is strict, so an existing process gives a clear error instead of silently switching ports. `/api/health` reports readiness and operating mode; `/docs` exposes the typed API.
 
-The street tiles come from OpenStreetMap and fonts from Google Fonts; both require internet access. System fonts provide a fallback. If tiles fail, the application shows a message and the local prediction API remains usable. Neighbourhood shortcuts and coordinate entry also provide alternatives to clicking the map. Location access is requested only when the user clicks the location button.
+The default Signal focus basemap uses Stadia Maps' Alidade Smooth raster style, with fewer points of interest and muted roads so prediction results stand out. The optional Detailed streets style uses standard OpenStreetMap tiles. Both styles require internet access. Fonts load separately from Google Fonts, with system fonts as a fallback. If tiles fail, the application shows a message and the local prediction API remains usable. Neighbourhood shortcuts and coordinate entry also provide alternatives to clicking the map. Location access is requested only when the user clicks the location button.
+
+Tower markers and the three nearest tower connections are hidden by default. Enable them under Layers when inspecting the infrastructure behind a prediction. The selected location is coloured by its download-quality category; these colours represent predicted mobile speed, not a measured radio signal in dBm. The demo label remains visible on simulated results.
+
+Stadia Maps permits keyless browser development on `localhost` and `127.0.0.1`, subject to development rate limits. Before public hosting, configure its domain authentication or choose another basemap provider; see the [Stadia authentication guide](https://docs.stadiamaps.com/authentication/). The original OpenStreetMap style remains available under Layers. Basemap URLs and attribution are defined in `frontend/src/basemaps.js`.
 
 The explorer is limited to Hanoi: panning is bounded to the city envelope, zoom cannot go below level 10, and neighbouring provinces are muted outside the administrative polygon. Coordinate entry, map clicks and browser location are checked against that polygon before requesting a prediction or moving the view; the backend independently repeats validation. Browser location outside Hanoi displays a message and leaves the map in Hanoi.
 
@@ -65,8 +77,9 @@ To return to demo mode, set `$env:SPEEDMAP_MODE = 'demo'` and restart.
 From the root:
 
 ```powershell
-python -m ruff check backend src/speedmap/inference tests/test_api.py tests/test_predictor.py
-python -m pytest tests/test_api.py tests/test_predictor.py tests/test_boundary.py tests/test_features.py tests/test_artifacts.py -q
+python -m pip install -r requirements-dev.txt
+python -m ruff check backend src/speedmap/inference scripts/launch.py tests/test_api.py tests/test_predictor.py tests/test_launcher.py
+python -m pytest tests/test_api.py tests/test_predictor.py tests/test_launcher.py tests/test_boundary.py tests/test_features.py tests/test_artifacts.py -q
 ```
 
 From `frontend/`:
