@@ -3,7 +3,16 @@
 Produced by Person 3 (backend), using the bundle saved by Person 2 (notebook 06).
 
 ## GET /api/health
-`{"status": "ok", "model_loaded": true}`
+```json
+{"status": "ok", "ready": true, "mode": "demo", "model_loaded": false,
+ "model_version": "demo-v1", "tower_count": 296}
+```
+
+`ready` means predictions can be served. `model_loaded` is false in demo mode.
+Model startup failures return `status: "unavailable"`, `ready: false` and prediction/tower endpoints return 503. Model mode never falls back to simulated data.
+
+## GET /api/boundary
+Returns the Hanoi administrative boundary as a GeoJSON FeatureCollection, using the same local file as coordinate validation.
 
 ## GET /api/towers
 ```json
@@ -19,11 +28,17 @@ Produced by Person 3 (backend), using the bundle saved by Person 2 (notebook 06)
   "quality_level": "Good",
   "theory_mbps": 223.0, "local_effect_mbps": -90.0,
   "nearest_towers": [
-    {"tower_id": 1, "latitude": 21.03, "longitude": 105.85, "distance_m": 400}
-  ]
+    {"tower_id": 1, "latitude": 21.03, "longitude": 105.85, "distance_m": 400, "source": "opencellid"}
+  ],
+  "source": "model", "model_version": "20261020-101500",
+  "interval_kind": "conformal", "confidence_level": 0.8
 }
 ```
 Errors: `422` if the point is outside Hanoi; `503` if no model is saved yet.
+
+Missing, malformed, non-finite and out-of-range coordinates also return 422 using FastAPI's standard validation response. Prediction errors use a string `detail`. Coordinates inside the old bounding box but outside the administrative polygon are rejected.
+
+In demo mode, prediction `source` is `"demo"`, `interval_kind` is `"illustrative"`, and `confidence_level` is `null`. Tower IDs are strings such as `"DEMO-001"`, and their `source` is `"simulated"`. The frontend must not present these ranges as calibrated confidence intervals. Tower IDs may be integers or strings in either mode.
 
 ## Saved model bundle (`artifacts/models/hybrid/<run>/model.joblib`)
 ```python
@@ -31,3 +46,5 @@ Errors: `422` if the point is outside Hanoi; `503` if no model is saved yet.
  "secondary": {"upload_mbps": XGBRegressor, "latency_ms": XGBRegressor},
  "latest_quarter_index": int}
 ```
+
+The inference adapter calls `model.predict(features)`, `conformal.interval(predictions)` (a `(low, high)` pair), and each secondary estimator's `predict(features)`. Features use exactly `config.FEATURE_COLUMNS`, with `quarter_index` from the bundle. All outputs must be finite and non-negative, with the download estimate inside its interval. Shared physics must be implemented before model mode can become ready.
