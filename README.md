@@ -8,7 +8,9 @@ Built for **COS40007 — Artificial Intelligence Engineering** at Swinburne Univ
 
 > **Current status: local demo.** The web application runs while the team develops the prediction model. In demo mode, **speeds, ranges and tower locations are simulated**. No dataset or trained model is needed to start the website.
 
-[Start the website](#start-the-website) · [Docker](#run-with-docker) · [Model integration](#connect-the-trained-model) · [Development checks](#development-checks) · [Documentation](#documentation)
+**Windows quick launch:** double-click **[demo.bat](demo.bat)** for simulated predictions or **[start.bat](start.bat)** for the actual saved model. Install Python and Node.js first; the launchers handle project dependencies and open the browser.
+
+[Double-click launch](#double-click-on-windows) · [Manual setup](#before-you-start) · [Docker](#run-with-docker) · [Model integration](#connect-the-trained-model) · [Development checks](#development-checks) · [Documentation](#documentation)
 
 ## What you can explore
 
@@ -27,6 +29,8 @@ On Windows, use the double-click launchers below. Manual startup with two termin
 ### Double-click on Windows
 
 Install the Python and Node.js prerequisites listed below, then open this folder in File Explorer:
+
+If Windows hides file extensions, the launchers appear as **demo** and **start**.
 
 | Launcher | What it starts |
 | --- | --- |
@@ -111,7 +115,7 @@ Leave this terminal running too. `npm ci` installs the frontend dependencies fro
 
 Choose **Hoàn Kiếm** to try your first prediction. The header should show **Demo mode**.
 
-**Next time:** skip the one-time installation commands. Start the backend and run `npm run dev` from `frontend/`. Stop each server with **Ctrl+C** in its terminal.
+**Next time:** double-click `demo.bat` or `start.bat` again. For manual startup, skip the one-time installation commands, start the backend and run `npm run dev` from `frontend/`. Stop launcher-managed services with **Enter** in the launcher window; stop manually started servers with **Ctrl+C** in their terminals.
 
 Map tiles need an internet connection. The default **Signal focus** style is intentionally quiet; switch to **Detailed streets** under Layers when you need more map detail. The demo prediction service runs locally; optional web fonts load separately and fall back to system fonts if unavailable.
 
@@ -149,7 +153,7 @@ The planned model combines **3GPP physics and XGBoost**, with KNN and Random For
 
 ## Connect the trained model
 
-The backend defaults to `SPEEDMAP_MODE=demo`. To use `model` mode, the model team must provide the saved bundle, its metadata, the processed tower table and the completed shared physics code. Install any additional estimator dependencies in the backend's Python environment.
+Double-click **`start.bat`** to launch in `model` mode. The model team must first provide the saved bundle, its metadata, the processed tower table and the completed shared physics code. The launcher installs the dependencies in `requirements-model.txt`; add any additional estimator dependencies there. Manual backend startup defaults to `SPEEDMAP_MODE=demo` unless configured otherwise.
 
 Follow the **[model handoff guide](docs/application.md#switch-to-the-teams-trained-model)** and **[API contract](docs/api_contract.md)** for the expected files, bundle interface and environment settings.
 
