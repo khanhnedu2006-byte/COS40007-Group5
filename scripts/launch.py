@@ -3,8 +3,10 @@ import argparse
 import hashlib
 import json
 import os
+import platform
 import shutil
 import socket
+import struct
 import subprocess
 import sys
 import time
@@ -24,6 +26,11 @@ def fingerprint(*paths):
         digest.update(path.read_bytes())
         digest.update(b"\0")
     return digest.hexdigest()
+
+
+def environment_fingerprint(root, info, *paths):
+    identity = json.dumps({"python": info, "project": str(root.resolve())}, sort_keys=True)
+    return hashlib.sha256((fingerprint(*paths) + identity).encode()).hexdigest()
 
 
 def require_model(root, env):
@@ -50,6 +57,78 @@ def run_setup(command, cwd):
     subprocess.run(command, cwd=cwd, check=True)
 
 
+def python_info(python, cwd):
+    """Probe without importing installed packages; broken copied venvs return None."""
+    code = (
+        "import json, struct, sys; print(json.dumps({"
+        "'version': list(sys.version_info[:3]), 'base': sys.base_prefix, "
+        "'prefix': sys.prefix, 'executable': sys.executable, "
+        "'bits': struct.calcsize('P') * 8, 'abi': sys.implementation.cache_tag}))"
+    )
+    try:
+        result = subprocess.run(
+            [str(python), "-c", code], cwd=cwd, text=True, capture_output=True,
+            check=False, timeout=15,
+        )
+        info = json.loads(result.stdout) if result.returncode == 0 else None
+        if isinstance(info, dict) and {"version", "base", "prefix", "executable", "bits", "abi"} <= info.keys():
+            return info
+    except (OSError, ValueError, subprocess.SubprocessError):
+        pass
+    return None
+
+
+def compatible_environment(root, info):
+    if info is None:
+        return False
+    env = root.resolve() / ".venv"
+    cfg = env / "pyvenv.cfg"
+    if not cfg.is_file():
+        return False
+    settings = dict(line.split("=", 1) for line in cfg.read_text(encoding="utf-8").splitlines() if "=" in line)
+    settings = {key.strip(): value.strip() for key, value in settings.items()}
+    created_version = settings.get("version", settings.get("version_info", "")).split(".")[:2]
+    return (
+        info["version"][:2] == list(sys.version_info[:2])
+        and created_version == [str(part) for part in sys.version_info[:2]]
+        and info["bits"] == struct.calcsize("P") * 8
+        and Path(info["base"]).resolve() == Path(sys.base_prefix).resolve()
+        and Path(info["prefix"]).resolve() == env
+    )
+
+
+def preserve_environment(root):
+    """Keep the old directory as a backup, after validating both absolute paths."""
+    root = root.resolve()
+    source = root / ".venv"
+    if source.resolve() != source or source.is_symlink():
+        raise RuntimeError("The .venv path is redirected. Use a normal project-local virtual environment.")
+    name = f".venv.backup-{time.strftime('%Y%m%d-%H%M%S')}"
+    backup = root / name
+    counter = 1
+    while backup.exists():
+        backup = root / f"{name}-{counter}"
+        counter += 1
+    if source.parent != root or backup.resolve().parent != root:
+        raise RuntimeError("Environment paths must stay inside the project directory.")
+    source.rename(backup)
+    print(f"Saved the old Python environment as {backup.name}.", flush=True)
+
+
+def ensure_environment(root):
+    python = root / ".venv" / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    info = python_info(python, root) if python.is_file() else None
+    if not compatible_environment(root, info):
+        if (root / ".venv").exists() or (root / ".venv").is_symlink():
+            preserve_environment(root)
+        print(f"Creating a fresh Python {sys.version_info.major}.{sys.version_info.minor} environment...", flush=True)
+        run_setup([sys.executable, "-m", "venv", str(root / ".venv")], root)
+        info = python_info(python, root)
+        if not compatible_environment(root, info):
+            raise RuntimeError("Could not create a working Python environment. Check your Python installation.")
+    return python, info
+
+
 def prepare(root, mode, node, npm, setup_backend=True, setup_frontend=True):
     version = subprocess.check_output([node, "--version"], text=True).strip().lstrip("v")
     major, minor = (int(part) for part in version.split(".")[:2])
@@ -59,11 +138,11 @@ def prepare(root, mode, node, npm, setup_backend=True, setup_frontend=True):
     state = root / ".run"
     state.mkdir(exist_ok=True)
     if setup_backend:
-        if not python.is_file():
-            print("Creating the project's Python environment...", flush=True)
-            run_setup([sys.executable, "-m", "venv", str(root / ".venv")], root)
+        python, info = ensure_environment(root)
         requirement = root / ("requirements-model.txt" if mode == "model" else "requirements-app.txt")
-        dependency_hash = fingerprint(root / "requirements-app.txt", requirement, root / "pyproject.toml")
+        dependency_hash = environment_fingerprint(
+            root, info, root / "requirements-app.txt", requirement, root / "pyproject.toml",
+        )
         stamp = state / f"python-{mode}.sha256"
         installed = subprocess.run(
             [str(python), "-c", "import fastapi, uvicorn, speedmap"],
@@ -71,6 +150,8 @@ def prepare(root, mode, node, npm, setup_backend=True, setup_frontend=True):
         ).returncode == 0
         if not installed or not stamp.is_file() or stamp.read_text() != dependency_hash:
             print("Installing backend dependencies (first run or requirements changed)...", flush=True)
+            run_setup([str(python), "-m", "ensurepip", "--upgrade"], root)
+            run_setup([str(python), "-m", "pip", "install", "--upgrade", "pip", "setuptools", "wheel"], root)
             run_setup([str(python), "-m", "pip", "install", "-r", str(requirement)], root)
             run_setup([str(python), "-m", "pip", "install", "-e", ".", "--no-deps"], root)
             stamp.write_text(dependency_hash)
@@ -78,7 +159,10 @@ def prepare(root, mode, node, npm, setup_backend=True, setup_frontend=True):
     frontend = root / "frontend"
     vite = frontend / "node_modules" / "vite" / "bin" / "vite.js"
     if setup_frontend:
-        dependency_hash = fingerprint(frontend / "package.json", frontend / "package-lock.json")
+        frontend_identity = str(frontend.resolve()) + version + platform.system() + platform.machine()
+        dependency_hash = hashlib.sha256((
+            fingerprint(frontend / "package.json", frontend / "package-lock.json") + frontend_identity
+        ).encode()).hexdigest()
         stamp = state / "frontend.sha256"
         if not vite.is_file() or not stamp.is_file() or stamp.read_text() != dependency_hash:
             print("Installing frontend dependencies (first run or lockfile changed)...", flush=True)
@@ -150,6 +234,9 @@ def keep_running():
 def launch(mode, no_browser=False, smoke_test=False):
     if sys.version_info < (3, 11):
         raise RuntimeError("Python 3.11 or later is required.")
+    if struct.calcsize("P") * 8 != 64:
+        raise RuntimeError("Install 64-bit Python 3.11 or later (including 3.14). The scientific dependencies need a 64-bit runtime.")
+    print(f"Using Python {sys.version.split()[0]} (64-bit): {sys.executable}", flush=True)
     env = os.environ.copy()
     env["SPEEDMAP_MODE"] = mode
     if mode == "model":

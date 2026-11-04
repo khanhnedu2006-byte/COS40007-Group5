@@ -37,7 +37,7 @@ If Windows hides file extensions, the launchers appear as **demo** and **start**
 | **[demo.bat](demo.bat)** | The website with simulated predictions. No dataset or model required. |
 | **[start.bat](start.bat)** | The website using the team's actual saved model and tower data. |
 
-Double-click the launcher you want. On the first run, it creates `.venv/` and installs dependencies automatically; this needs internet access. Later runs skip installation unless requirements or the frontend lockfile change. The browser opens at **http://127.0.0.1:5173** when both services are ready.
+Double-click the launcher you want. It uses this computer's Python installation and prints the selected version. On the first run, it creates `.venv/` and installs dependencies automatically; this needs internet access. A copied, broken or incompatible `.venv/` is preserved as `.venv.backup-<timestamp>/` and replaced with a fresh environment. Later runs skip installation unless the Python runtime, project location, requirements or frontend dependencies change. The browser opens at **http://127.0.0.1:5173** when both services are ready.
 
 Keep the launcher window open while using the website. Press **Enter** there to stop the services it started. If the same mode is already running, the launcher reopens it. Close the existing launcher or manually started servers before switching modes. Startup logs are saved under `.run/`.
 
@@ -45,7 +45,9 @@ Keep the launcher window open while using the website. Press **Enter** there to 
 
 ### Before you start
 
-Install **Python 3.11** (the version used in CI) and **Node.js 22.13 or later in the Node 22 release line**, including npm. Clone or download this repository, then open a terminal in its root folder — the folder containing `README.md`, `backend/` and `frontend/`.
+Install **64-bit Python 3.11 or newer, including Python 3.14.7**, with pip, and **Node.js 22.13 or later in the Node 22 release line**, including npm. Make Python available through `python` on PATH or the Windows `py` launcher. Clone or download this repository, then open a terminal in its root folder — the folder containing `README.md`, `backend/` and `frontend/`.
+
+When transferring the project to another computer, copy the source files rather than `.venv/`, `.venv.backup-*/`, `frontend/node_modules/` or `.run/`. These are generated locally and are already excluded from Git. Double-click `demo.bat` on the new computer to create its own environment.
 
 Check your tools:
 
@@ -245,6 +247,8 @@ Both workflows target pushes and pull requests to `main` and support manual runs
 | The map background does not load | Check internet access or switch to **Detailed streets** under Layers. Neighbourhood shortcuts and coordinate entry still work. |
 | A location is rejected | Predictions are available only inside Hanoi's administrative boundary, including when using browser location. |
 | The health response says `model_loaded: false` | This is expected in demo mode. Check `ready` and `mode` as well. |
+| A copied project reports a missing Python installation | Update the launcher files and run `demo.bat` again. It validates the local Python runtime and backs up an incompatible `.venv/` before creating a new one. |
+| Python 3.14 setup fails | Use 64-bit Python with pip and the latest launcher. Setup upgrades packaging tools before installing the application dependencies. Read the printed Python version and last error lines; model/training dependencies may have separate requirements. |
 | Model mode returns `503` | Check the backend logs and follow the model handoff guide. Confirm that the bundle, tower data and estimator dependencies are available. |
 | Browser tests cannot start Python | Activate the backend virtual environment in the test terminal, or start the backend separately before running the tests. |
 

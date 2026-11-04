@@ -1,5 +1,6 @@
 .git
 .venv
+.venv.backup-*
 .run
 **/__pycache__
 **/node_modules

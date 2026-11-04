@@ -1,11 +1,94 @@
 """Startup mode, artifact and cleanup checks without downloading dependencies."""
 import json
+import struct
 import subprocess
+import sys
 from unittest.mock import Mock
 
 import pytest
 
 from scripts import launch
+
+
+def runtime_info(root):
+    return {
+        "version": list(sys.version_info[:3]), "base": sys.base_prefix,
+        "prefix": str(root / ".venv"), "executable": str(root / ".venv" / "Scripts" / "python.exe"),
+        "bits": struct.calcsize("P") * 8, "abi": sys.implementation.cache_tag,
+    }
+
+
+def test_python_probe_reports_the_actual_interpreter(tmp_path):
+    info = launch.python_info(sys.executable, tmp_path)
+    assert info["version"] == list(sys.version_info[:3])
+    assert info["bits"] == struct.calcsize("P") * 8
+    assert launch.python_info(tmp_path / "missing-python.exe", tmp_path) is None
+
+
+def test_environment_matches_the_current_python_and_project(tmp_path):
+    env = tmp_path / ".venv"
+    env.mkdir()
+    (env / "pyvenv.cfg").write_text(f"version = {sys.version.split()[0]}\n")
+    info = runtime_info(tmp_path)
+    assert launch.compatible_environment(tmp_path, info)
+    assert not launch.compatible_environment(tmp_path, None)
+    assert not launch.compatible_environment(tmp_path, {**info, "version": [3, 10, 0]})
+    assert not launch.compatible_environment(tmp_path, {**info, "prefix": str(tmp_path / "another-project")})
+    (env / "pyvenv.cfg").write_text("version = 3.10.0\n")
+    assert not launch.compatible_environment(tmp_path, info)
+
+
+def test_old_environment_is_preserved_inside_the_project(tmp_path):
+    env = tmp_path / ".venv"
+    env.mkdir()
+    (env / "keep.txt").write_text("original environment")
+    launch.preserve_environment(tmp_path)
+    assert not env.exists()
+    [backup] = list(tmp_path.glob(".venv.backup-*"))
+    assert (backup / "keep.txt").read_text() == "original environment"
+
+
+def test_redirected_environment_is_not_moved(tmp_path, monkeypatch):
+    env = tmp_path / ".venv"
+    env.mkdir()
+    original_resolve = type(env).resolve
+
+    def redirect(path, *args, **kwargs):
+        return tmp_path.parent / "outside-project" if path == env else original_resolve(path, *args, **kwargs)
+
+    monkeypatch.setattr(type(env), "resolve", redirect)
+    with pytest.raises(RuntimeError, match="redirected"):
+        launch.preserve_environment(tmp_path)
+    assert env.is_dir()
+
+
+def test_broken_copied_environment_is_recreated_with_selected_python(tmp_path, monkeypatch):
+    python = tmp_path / ".venv" / ("Scripts/python.exe" if launch.os.name == "nt" else "bin/python")
+    python.parent.mkdir(parents=True)
+    python.touch()
+    (tmp_path / ".venv" / "pyvenv.cfg").write_text("version = 3.10.0\n")
+    info = runtime_info(tmp_path)
+    probe = Mock(side_effect=[None, info])
+    monkeypatch.setattr(launch, "python_info", probe)
+
+    def create(command, cwd):
+        assert command[:3] == [sys.executable, "-m", "venv"]
+        python.parent.mkdir(parents=True)
+        python.touch()
+        (tmp_path / ".venv" / "pyvenv.cfg").write_text(f"version = {sys.version.split()[0]}\n")
+
+    monkeypatch.setattr(launch, "run_setup", create)
+    executable, result = launch.ensure_environment(tmp_path)
+    assert executable == python and result == info
+    assert len(list(tmp_path.glob(".venv.backup-*"))) == 1
+
+
+def test_dependency_cache_cannot_be_copied_between_python_versions_or_projects(tmp_path):
+    requirement = tmp_path / "requirements.txt"
+    requirement.write_text("fastapi\n")
+    first = launch.environment_fingerprint(tmp_path, {"version": [3, 11, 9]}, requirement)
+    assert first != launch.environment_fingerprint(tmp_path, {"version": [3, 14, 7]}, requirement)
+    assert first != launch.environment_fingerprint(tmp_path / "another-project", {"version": [3, 11, 9]}, requirement)
 
 
 def test_missing_real_model_is_reported_instead_of_using_demo(tmp_path):

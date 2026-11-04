@@ -4,7 +4,9 @@ The frontend and backend can be developed while the data/model work continues. T
 
 ## Local run
 
-On Windows, double-click `demo.bat` for simulated predictions or `start.bat` for a real saved-model bundle. `scripts/launch.cmd` finds Python and calls the shared `scripts/launch.py` manager. The manager creates `.venv/` if needed, installs `requirements-app.txt` (demo) or `requirements-model.txt` (real model), installs the shared package, and runs `npm ci` when needed. Dependency-file hashes under `.run/` prevent reinstalling on every launch.
+On Windows, double-click `demo.bat` for simulated predictions or `start.bat` for a real saved-model bundle. `scripts/launch.cmd` prefers this computer's Python (`py -3`, `python` or `python3`) and calls the shared `scripts/launch.py` manager. A working `.venv` interpreter is a fallback when those commands are unavailable. The manager validates the environment's original Python version, base interpreter, architecture and project location. A broken or incompatible environment is preserved under `.venv.backup-<timestamp>/`, then recreated with the selected interpreter.
+
+Setup ensures pip is present and upgrades pip, setuptools and wheel before installing `requirements-app.txt` (demo) or `requirements-model.txt` (real model), then installs the shared package. It runs `npm ci` when needed. Backend cache keys include the Python runtime and absolute project location; frontend keys also include Node and the operating system/architecture. Copied cache files therefore cannot skip setup on a different project location or runtime.
 
 The launcher starts Python and Node directly, waits for `/api/health` through both ports, checks the requested prediction mode and opens the browser. Press Enter in its console to stop its own services. Ready services can be reused, but a running demo backend cannot be reused as model mode. Port conflicts and failed model readiness produce errors; logs are written to `.run/`. The launchers require Python and Node/npm to be installed first. Model files and completed shared physics still come from the model team.
 
@@ -12,7 +14,7 @@ For a startup/cleanup smoke check without opening a browser, run `python scripts
 
 ### Manual startup
 
-Use Python 3.11+ and Node 22.13+ (the application lint tool requires a recent Node version).
+Use 64-bit Python 3.11+ (including 3.14.7) and Node 22.13+ (the application lint tool requires a recent Node version). Application CI covers Python 3.11 on Linux and 3.14.7 on Windows. The separate TensorFlow training workflow retains Python 3.11; a real model must still have compatible estimator dependencies.
 From the repository root, activate your virtual environment, then:
 
 ```powershell

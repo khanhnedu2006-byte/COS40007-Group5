@@ -12,13 +12,21 @@ permissions:
 
 jobs:
   backend:
-    name: API and shared interfaces
-    runs-on: ubuntu-latest
+    name: API and shared interfaces (${{ matrix.os }}, Python ${{ matrix.python }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            python: '3.11'
+          - os: windows-latest
+            python: '3.14.7'
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: ${{ matrix.python }}
           cache: pip
           cache-dependency-path: |
             requirements-app.txt
