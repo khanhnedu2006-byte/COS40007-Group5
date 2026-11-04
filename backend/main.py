@@ -83,6 +83,7 @@ def create_app(mode: str | None = None, predictor=None) -> FastAPI:
             "model_loaded": selected_mode == "model" and service is not None,
             "model_version": getattr(service, "version", None),
             "tower_count": len(service.tower_list()) if service is not None else 0,
+            "tower_data_source": getattr(service, "tower_data_source", "dataset") if service is not None else None,
         }
 
     @app.get("/api/boundary")

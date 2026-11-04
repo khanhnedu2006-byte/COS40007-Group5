@@ -1,29 +1,58 @@
-"""Deterministic UI fixtures, independent of the team's training and physics code.
-
-All towers, speeds and ranges here are simulated. Nothing is a real measurement.
-"""
+"""Simulated speeds with local tower data when available; no trained model required."""
 import math
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
 from speedmap import config
 from speedmap.data.boundary import contains
+from speedmap.data.towers import load_towers
 from speedmap.features.spatial import TowerIndex
 
 
 class DemoPredictor:
     version = "demo-v1"
 
-    def __init__(self):
+    def __init__(self, tower_path=None):
+        path = Path(tower_path) if tower_path is not None else config.TOWERS_FILE
+        if path.is_file():
+            self.towers = self._load_dataset(path)
+            self.tower_data_source = "dataset"
+        else:
+            self.towers = self._simulated_towers()
+            self.tower_data_source = "simulated"
+        self.index = TowerIndex(self.towers)
+
+    @staticmethod
+    def _load_dataset(path):
+        towers = load_towers(path)
+        required = {"tower_id", "latitude", "longitude"}
+        if towers.empty or not required.issubset(towers.columns):
+            raise ValueError(f"{path} must contain tower_id, latitude and longitude, with at least one row.")
+        coords = towers[["latitude", "longitude"]].apply(pd.to_numeric, errors="coerce")
+        if (not np.isfinite(coords.to_numpy()).all() or not coords["latitude"].between(-90, 90).all()
+                or not coords["longitude"].between(-180, 180).all()):
+            raise ValueError(f"{path} contains invalid tower coordinates.")
+        if towers["tower_id"].isna().any() or towers["tower_id"].astype(str).str.strip().eq("").any():
+            raise ValueError(f"{path} contains missing tower IDs.")
+        if towers["tower_id"].astype(str).duplicated().any():
+            raise ValueError(f"{path} contains duplicate tower IDs.")
+        towers = towers.assign(latitude=coords["latitude"], longitude=coords["longitude"])
+        if "source" not in towers:
+            towers = towers.assign(source="estimated")
+        towers["source"] = towers["source"].fillna("estimated").astype(str).str.strip().replace("", "estimated")
+        return towers[["tower_id", "latitude", "longitude", "source"]].reset_index(drop=True)
+
+    @staticmethod
+    def _simulated_towers():
         rng = np.random.default_rng(42)
         lat = np.concatenate([rng.normal(21.035, 0.045, 180), rng.uniform(20.65, 21.3, 180)])
         lon = np.concatenate([rng.normal(105.81, 0.055, 180), rng.uniform(105.45, 106.03, 180)])
         keep = contains(lat, lon)
-        self.towers = pd.DataFrame({"latitude": lat[keep], "longitude": lon[keep]}).round(6)
-        self.towers.insert(0, "tower_id", [f"DEMO-{i + 1:03}" for i in range(len(self.towers))])
-        self.towers["source"] = "simulated"
-        self.index = TowerIndex(self.towers)
+        towers = pd.DataFrame({"latitude": lat[keep], "longitude": lon[keep]}).round(6)
+        towers.insert(0, "tower_id", [f"DEMO-{i + 1:03}" for i in range(len(towers))])
+        return towers.assign(source="simulated")
 
     def tower_list(self):
         return self.towers.to_dict(orient="records")

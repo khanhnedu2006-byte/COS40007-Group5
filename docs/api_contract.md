@@ -5,10 +5,11 @@ Produced by Person 3 (backend), using the bundle saved by Person 2 (notebook 06)
 ## GET /api/health
 ```json
 {"status": "ok", "ready": true, "mode": "demo", "model_loaded": false,
- "model_version": "demo-v1", "tower_count": 296}
+ "model_version": "demo-v1", "tower_count": 2398, "tower_data_source": "dataset"}
 ```
 
 `ready` means predictions can be served. `model_loaded` is false in demo mode.
+`tower_count` depends on the loaded file. `tower_data_source` distinguishes `"dataset"` locations from the `"simulated"` fallback, independently of prediction mode; it is `null` when the service is unavailable.
 Model startup failures return `status: "unavailable"`, `ready: false` and prediction/tower endpoints return 503. Model mode never falls back to simulated data.
 
 ## GET /api/boundary
@@ -38,7 +39,7 @@ Errors: `422` if the point is outside Hanoi; `503` if no model is saved yet.
 
 Missing, malformed, non-finite and out-of-range coordinates also return 422 using FastAPI's standard validation response. Prediction errors use a string `detail`. Coordinates inside the old bounding box but outside the administrative polygon are rejected.
 
-In demo mode, prediction `source` is `"demo"`, `interval_kind` is `"illustrative"`, and `confidence_level` is `null`. Tower IDs are strings such as `"DEMO-001"`, and their `source` is `"simulated"`. The frontend must not present these ranges as calibrated confidence intervals. Tower IDs may be integers or strings in either mode.
+In demo mode, prediction `source` is `"demo"`, `interval_kind` is `"illustrative"`, and `confidence_level` is `null`. When `data/interim/hanoi_towers.csv` exists, tower IDs, coordinates and sources (such as `"opencellid"` or `"osm"`) come from the dataset, and distances are computed from those positions. When the file is absent, tower IDs are strings such as `"DEMO-001"` with `source: "simulated"`. Tower IDs may be integers or strings in either mode. Tower provenance does not change the simulated nature of demo speeds and ranges.
 
 ## Saved model bundle (`artifacts/models/hybrid/<run>/model.joblib`)
 ```python

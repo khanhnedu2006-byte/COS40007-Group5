@@ -97,6 +97,7 @@ export default function App() {
     setReload((value) => value + 1);
   };
   const demo = health?.mode === "demo";
+  const simulatedTowers = health?.tower_data_source === "simulated";
 
   return (
     <div className="app-shell">
@@ -114,7 +115,7 @@ export default function App() {
       </header>
       <div className={`mode-banner ${connectionError ? "has-error" : ""}`} role="status">
         <Icon name={connectionError ? "info" : "globe"} size={15} />
-        <span>{connectionError || (connecting ? "Connecting to your local signal explorer…" : demo ? "You're exploring a demo. Speeds, ranges and tower locations are simulated while our model is in development." : "Area estimates for mobile internet, combining 4G and 5G. These are predictions, not live speed tests.")}</span>
+        <span>{connectionError || (connecting ? "Connecting to your local signal explorer…" : demo ? simulatedTowers ? "You're exploring a demo. Speeds, ranges and tower locations are simulated while our model is in development." : "Demo mode uses your local tower dataset. Speeds and ranges are simulated while our model is in development." : "Area estimates for mobile internet, combining 4G and 5G. These are predictions, not live speed tests.")}</span>
         {connectionError && <button onClick={retry}><Icon name="refresh" size={14} />Reconnect</button>}
         {!connectionError && <span className="banner-project">COS40007 DESIGN PROJECT</span>}
       </div>
@@ -122,14 +123,14 @@ export default function App() {
         <Sidebar
           towerCount={towers.length} result={result} error={error} loading={loading}
           selected={selected} places={PLACES} onSelect={selectPoint}
-          disabled={connecting || !health?.ready || !area} demo={demo}
+          disabled={connecting || !health?.ready || !area} simulatedTowers={simulatedTowers}
           onRetry={selected && !selected.outside ? () => selectPoint(selected.lat, selected.lon, selected.name) : undefined}
         />
         <SpeedMap
           towers={towers} boundary={boundary} area={area} showTowers={showTowers} showBoundary={showBoundary}
           onToggleTowers={toggleTowers} onToggleBoundary={toggleBoundary}
           result={result} selected={selected} navigation={navigation} loading={loading}
-          onMapClick={selectPoint} disabled={connecting || !health?.ready || !area} demo={demo}
+          onMapClick={selectPoint} disabled={connecting || !health?.ready || !area} simulatedTowers={simulatedTowers}
         />
       </main>
       <AboutDialog open={aboutOpen} onClose={() => setAboutOpen(false)} />

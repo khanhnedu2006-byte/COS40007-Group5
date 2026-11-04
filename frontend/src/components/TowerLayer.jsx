@@ -14,7 +14,7 @@ const TowerMarker = memo(function TowerMarker({ group, map }) {
     bubblingMouseEvents={false} pathOptions={group.count > 1 ? CLUSTER_STYLE : SINGLE_STYLE}
     eventHandlers={events}>
     {group.count > 1 ? <Tooltip permanent direction="center" className="cluster-count">{group.count}</Tooltip>
-      : <Tooltip direction="top"><strong>{group.tower.source === "simulated" ? "Demo tower" : "Estimated cell location"}</strong><br />{group.tower.tower_id}</Tooltip>}
+      : <Tooltip direction="top"><strong>{group.tower.source === "simulated" ? "Demo tower" : group.tower.source === "osm" ? "OSM mast" : "Estimated cell location"}</strong><br />{group.tower.tower_id}{group.tower.source === "opencellid" ? " · OpenCelliD" : ""}</Tooltip>}
   </CircleMarker>;
 });
 
