@@ -30,7 +30,9 @@ def saved_model(tmp_path, monkeypatch):
         "tower_id": [1, 2, 3], "latitude": [21.0285, 21.03, 21.04],
         "longitude": [105.8542, 105.85, 105.86],
     })
-    monkeypatch.setattr("speedmap.inference.predictor.load_towers", lambda: towers)
+    tower_file = tmp_path / "hanoi_towers.csv"
+    towers.to_csv(tower_file, index=False)
+    monkeypatch.setattr(config, "TOWERS_FILE", tower_file)
     monkeypatch.setattr("speedmap.features.tower_features.theoretical_speed_mbps", lambda distances: 223.0)
     bundle = {
         "model": ConstantEstimator(133), "conformal": FixedInterval(),
@@ -74,4 +76,21 @@ def test_incompatible_feature_contract_is_rejected(saved_model):
 def test_nonfinite_model_prediction_is_rejected_on_startup(saved_model, monkeypatch):
     monkeypatch.setattr(ConstantEstimator, "predict", lambda self, features: np.array([np.nan]))
     with pytest.raises(ValueError, match="finite"):
+        Predictor("test_hybrid")
+
+
+def test_model_trained_on_different_towers_is_rejected(saved_model):
+    config.TOWERS_FILE.write_text(config.TOWERS_FILE.read_text().replace("21.0285", "21.0295"))
+    with pytest.raises(ValueError, match="towers data differs"):
+        Predictor("test_hybrid")
+
+
+def test_unversioned_model_is_rejected(saved_model):
+    import json
+
+    path = saved_model / "metadata.json"
+    metadata = json.loads(path.read_text())
+    metadata.pop("data_fingerprints")
+    path.write_text(json.dumps(metadata))
+    with pytest.raises(ValueError, match="provenance"):
         Predictor("test_hybrid")

@@ -25,22 +25,24 @@ export default function ResultPanel({ result, error, loading, selected, onRetry 
     <span className="empty-caption"><span className="small-cross">+</span> YOUR NEXT CONNECTION STARTS HERE</span>
   </div>;
   const demo = result.source === "demo";
+  const dataMode = result.source === "data";
   const simulatedTowers = result.nearest_towers.every((tower) => tower.source === "simulated");
   const maximum = Math.max(result.download_high, 1);
   const lowPosition = result.download_low / maximum * 100;
   const pointPosition = result.download_mbps / maximum * 100;
   return <>
     <article className="snapshot result-card">
-      <div className="result-location"><Icon name="pin" size={16} /><strong>{selected?.name || "Selected location"}</strong><span className="result-type">{demo ? "SIMULATED" : "ESTIMATE"}</span></div>
+      <div className="result-location"><Icon name="pin" size={16} /><strong>{selected?.name || "Selected location"}</strong><span className="result-type">{demo ? "SIMULATED" : dataMode ? "DATA ESTIMATE" : "MODEL ESTIMATE"}</span></div>
       <p className="coordinates">{result.latitude.toFixed(5)}° N <span>/</span> {result.longitude.toFixed(5)}° E</p>
       <div className="speed-label"><Icon name="down" size={14} />DOWNLOAD SPEED</div>
       <div className="download-value">{result.download_mbps.toFixed(1)}<span>Mbps</span></div>
       <div className={`quality-badge quality-${result.quality_level.toLowerCase()}`}><span />{result.quality_level} connection</div>
       <p className="quality-description">{descriptions[result.quality_level]}</p>
       <div className="range-section">
-        <div><span>{demo ? "Illustrative range" : `${Math.round(result.confidence_level * 100)}% prediction range`}</span><strong>{result.download_low.toFixed(0)}–{result.download_high.toFixed(0)} <small>Mbps</small></strong></div>
+        <div><span>{demo ? "Illustrative range" : dataMode ? "Nearby measured range" : `${Math.round(result.confidence_level * 100)}% prediction range`}</span><strong>{result.download_low.toFixed(0)}–{result.download_high.toFixed(0)} <small>Mbps</small></strong></div>
         <div className="range-track"><span className="range-fill" style={{ left: `${lowPosition}%`, width: `${100 - lowPosition}%` }} /><span className="range-point" style={{ left: `${Math.min(pointPosition, 98)}%` }} /></div>
         {demo && <p>Demo range only; coverage has not been measured.</p>}
+        {dataMode && <p>Variation across nearby tiles, not a confidence interval.</p>}
       </div>
       <div className="secondary-metrics">
         <div><span><Icon name="up" size={15} />Upload</span><strong>{result.upload_mbps.toFixed(1)}<small>Mbps</small></strong></div>
@@ -55,8 +57,13 @@ export default function ResultPanel({ result, error, loading, selected, onRetry 
       </div>)}
     </section>
     <details className="model-details"><summary>Behind the estimate<Icon name="chevron" size={14} /></summary>
-      <p>{demo ? "Demo speeds and ranges are interface fixtures. Tower distances come from the loaded locations." : "The hybrid model adjusts a theoretical speed using local tower and location features."}</p>
-      <dl><div><dt>{demo ? "Simulated theory" : "Theoretical speed"}</dt><dd>{result.theory_mbps.toFixed(1)} Mbps</dd></div><div><dt>Local adjustment</dt><dd>{result.local_effect_mbps > 0 ? "+" : ""}{result.local_effect_mbps.toFixed(1)} Mbps</dd></div><div><dt>Version</dt><dd>{result.model_version}</dd></div></dl>
+      <p>{demo ? "Demo speeds and ranges are interface fixtures. Tower distances come from the loaded locations." : dataMode ? "This spatial estimate combines nearby recorded Ookla tiles using distance and test-count weights. It uses the current dataset while the hybrid model is being developed." : "The hybrid model adjusts a theoretical speed using local tower and location features."}</p>
+      <dl>
+        {result.data_support && <><div><dt>Nearby recorded tiles</dt><dd>{result.data_support.tiles_used}</dd></div><div><dt>Recorded speed tests</dt><dd>{result.data_support.tests.toLocaleString()}</dd></div><div><dt>Nearest tile centre</dt><dd>{formatDistance(result.data_support.nearest_tile_distance_m)}</dd></div><div><dt>Latest nearby quarter</dt><dd>{result.data_support.latest_quarter}</dd></div></>}
+        {result.theory_mbps != null && <div><dt>{demo ? "Simulated theory" : "Theoretical speed"}</dt><dd>{result.theory_mbps.toFixed(1)} Mbps</dd></div>}
+        {result.local_effect_mbps != null && <div><dt>Local adjustment</dt><dd>{result.local_effect_mbps > 0 ? "+" : ""}{result.local_effect_mbps.toFixed(1)} Mbps</dd></div>}
+        <div><dt>Version</dt><dd>{result.model_version}</dd></div>
+      </dl>
     </details>
   </>;
 }

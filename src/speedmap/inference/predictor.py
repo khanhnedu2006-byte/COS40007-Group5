@@ -3,7 +3,7 @@ import numpy as np
 
 from speedmap import config
 from speedmap.artifacts import load_model
-from speedmap.data.towers import load_towers
+from speedmap.data.catalog import load_tower_table, verify_fingerprints
 from speedmap.features.spatial import TowerIndex
 from speedmap.features.tower_features import tower_features
 
@@ -19,14 +19,9 @@ class Predictor:
         self.columns = self.metadata.get("feature_columns", list(config.FEATURE_COLUMNS))
         if self.columns != list(config.FEATURE_COLUMNS):
             raise ValueError("Saved model feature columns differ from the shared feature contract.")
-        self.towers = load_towers()
-        required_towers = {"tower_id", "latitude", "longitude"}
-        if self.towers.empty or not required_towers.issubset(self.towers.columns):
-            raise ValueError("Tower table is empty or missing required columns.")
-        if not np.isfinite(self.towers[["latitude", "longitude"]].to_numpy()).all():
-            raise ValueError("Tower coordinates must be finite.")
-        if "source" not in self.towers:
-            self.towers = self.towers.assign(source="estimated")
+        verify_fingerprints(self.metadata.get("data_fingerprints"))
+        self.towers = load_tower_table()
+        self.data_fingerprints = self.metadata["data_fingerprints"]
         self.index = TowerIndex(self.towers)
         self.version = str(self.metadata["run_id"])
         self.predict(*config.HANOI_CENTER)

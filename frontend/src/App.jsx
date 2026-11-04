@@ -102,6 +102,7 @@ export default function App() {
     setReload((value) => value + 1);
   };
   const demo = health?.mode === "demo";
+  const dataMode = health?.mode === "data";
   const simulatedTowers = health?.tower_data_source === "simulated";
 
   return (
@@ -114,13 +115,13 @@ export default function App() {
         </a>
         <nav className="header-center" aria-label="Main navigation"><a href="#/" className={!aboutOpen ? "active-nav" : undefined} aria-current={!aboutOpen ? "page" : undefined}>Signal explorer</a><span className="header-divider" /><span>Hanoi, Vietnam</span></nav>
         <div className="header-actions">
-          <span className={`service-badge ${health?.ready ? "connected" : ""}`}><span className="status-dot" />{connecting ? "Connecting" : health?.ready ? demo ? "Demo mode" : "Model connected" : "Service offline"}</span>
-          <a className="about-button" href="#/about" aria-label="About this project" aria-current={aboutOpen ? "page" : undefined}><Icon name="info" size={17} /><span>About this project</span></a>
+          <span className={`service-badge ${health?.ready ? "connected" : ""}`}><span className="status-dot" />{connecting ? "Connecting" : health?.ready ? demo ? "Demo mode" : dataMode ? "Data estimates" : "Model connected" : "Service offline"}</span>
+          <button className="about-button" aria-label="About this project" onClick={() => setAboutOpen(true)}><Icon name="info" size={17} /><span>About this project</span></button>
         </div>
       </header>
       {!aboutOpen && <div className={`mode-banner ${connectionError ? "has-error" : ""}`} role="status">
         <Icon name={connectionError ? "info" : "globe"} size={15} />
-        <span>{connectionError || (connecting ? "Connecting to your local signal explorer…" : demo ? simulatedTowers ? "You're exploring a demo. Speeds, ranges and tower locations are simulated while our model is in development." : "Demo mode uses your local tower dataset. Speeds and ranges are simulated while our model is in development." : "Area estimates for mobile internet, combining 4G and 5G. These are predictions, not live speed tests.")}</span>
+        <span>{connectionError || (connecting ? "Connecting to your local signal explorer…" : demo ? simulatedTowers ? "You're exploring a demo. Speeds, ranges and tower locations are simulated while our model is in development." : "Demo mode uses your local tower dataset. Speeds and ranges are simulated while our model is in development." : dataMode ? `Using ${health.observation_count?.toLocaleString()} recorded Hanoi tiles through ${health.data_period}. Spatial estimates reflect historical Ookla tests, not live measurements.` : "Area estimates for mobile internet, combining 4G and 5G. These are predictions, not live speed tests.")}</span>
         {connectionError && <button onClick={retry}><Icon name="refresh" size={14} />Reconnect</button>}
         {!connectionError && <span className="banner-project">COS40007 DESIGN PROJECT</span>}
       </div>}

@@ -7,7 +7,7 @@ import pandas as pd
 
 from speedmap import config
 from speedmap.data.boundary import contains
-from speedmap.data.towers import load_towers
+from speedmap.data.catalog import load_tower_table
 from speedmap.features.spatial import TowerIndex
 
 
@@ -26,23 +26,7 @@ class DemoPredictor:
 
     @staticmethod
     def _load_dataset(path):
-        towers = load_towers(path)
-        required = {"tower_id", "latitude", "longitude"}
-        if towers.empty or not required.issubset(towers.columns):
-            raise ValueError(f"{path} must contain tower_id, latitude and longitude, with at least one row.")
-        coords = towers[["latitude", "longitude"]].apply(pd.to_numeric, errors="coerce")
-        if (not np.isfinite(coords.to_numpy()).all() or not coords["latitude"].between(-90, 90).all()
-                or not coords["longitude"].between(-180, 180).all()):
-            raise ValueError(f"{path} contains invalid tower coordinates.")
-        if towers["tower_id"].isna().any() or towers["tower_id"].astype(str).str.strip().eq("").any():
-            raise ValueError(f"{path} contains missing tower IDs.")
-        if towers["tower_id"].astype(str).duplicated().any():
-            raise ValueError(f"{path} contains duplicate tower IDs.")
-        towers = towers.assign(latitude=coords["latitude"], longitude=coords["longitude"])
-        if "source" not in towers:
-            towers = towers.assign(source="estimated")
-        towers["source"] = towers["source"].fillna("estimated").astype(str).str.strip().replace("", "estimated")
-        return towers[["tower_id", "latitude", "longitude", "source"]].reset_index(drop=True)
+        return load_tower_table(path)
 
     @staticmethod
     def _simulated_towers():

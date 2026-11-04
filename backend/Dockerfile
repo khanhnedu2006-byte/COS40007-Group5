@@ -1,8 +1,9 @@
 FROM python:3.11-slim
 WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 MPLCONFIGDIR=/tmp/matplotlib
-COPY requirements-app.txt ./
-RUN pip install --no-cache-dir -r requirements-app.txt
+RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 && rm -rf /var/lib/apt/lists/*
+COPY requirements-app.txt requirements-model.txt ./
+RUN pip install --no-cache-dir -r requirements-model.txt
 COPY pyproject.toml ./
 COPY src ./src
 RUN pip install --no-cache-dir --no-deps -e .

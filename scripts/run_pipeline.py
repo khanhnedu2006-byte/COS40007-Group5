@@ -38,6 +38,10 @@ def run_features():
     tiles = build_tile_table(clean, hanoi_towers)
     tiles.to_csv(config.TILES_FILE, index=False)
     print(f"{len(tiles):,} tiles -> {config.TILES_FILE}")
+    from speedmap.data.catalog import sync_ci_snapshot
+
+    manifest = sync_ci_snapshot()
+    print(f"CI snapshot updated: {manifest['rows']:,} rows, SHA-256 {manifest['sha256']}")
 
 
 def run_baselines():
