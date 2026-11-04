@@ -22,6 +22,7 @@ class HealthResponse(BaseModel):
     model_loaded: bool
     model_version: str | None
     tower_count: int
+    tower_data_source: Literal["dataset", "simulated"] | None = None
 
 
 class PredictionResponse(BaseModel):

@@ -25,6 +25,7 @@ export default function ResultPanel({ result, error, loading, selected, onRetry 
     <span className="empty-caption"><span className="small-cross">+</span> YOUR NEXT CONNECTION STARTS HERE</span>
   </div>;
   const demo = result.source === "demo";
+  const simulatedTowers = result.nearest_towers.every((tower) => tower.source === "simulated");
   const maximum = Math.max(result.download_high, 1);
   const lowPosition = result.download_low / maximum * 100;
   const pointPosition = result.download_mbps / maximum * 100;
@@ -48,13 +49,13 @@ export default function ResultPanel({ result, error, loading, selected, onRetry 
       <Legend level={result.quality_level} />
     </article>
     <section className="nearest-section" aria-label="Three nearest towers">
-      <div className="nearest-heading"><Icon name="tower" size={16} /><h3>Closest {demo ? "demo towers" : "cell locations"}</h3><span>ON THE MAP</span></div>
+      <div className="nearest-heading"><Icon name="tower" size={16} /><h3>Closest {simulatedTowers ? "demo towers" : "cell locations"}</h3><span>NEAR THIS POINT</span></div>
       {result.nearest_towers.map((tower, index) => <div className="nearest-row" key={tower.tower_id}>
-        <span className="tower-number">{String(index + 1).padStart(2, "0")}</span><span>{demo ? "Demo tower" : "Cell location"} <small>{tower.tower_id}</small></span><strong>{formatDistance(tower.distance_m)}</strong>
+        <span className="tower-number">{String(index + 1).padStart(2, "0")}</span><span>{tower.source === "simulated" ? "Demo tower" : tower.source === "osm" ? "OSM mast" : "Cell location"} <small>{tower.tower_id}{tower.source === "opencellid" ? " · OpenCelliD" : ""}</small></span><strong>{formatDistance(tower.distance_m)}</strong>
       </div>)}
     </section>
     <details className="model-details"><summary>Behind the estimate<Icon name="chevron" size={14} /></summary>
-      <p>{demo ? "These values are fixtures for developing the interface. They do not run the physics or ML model." : "The hybrid model adjusts a theoretical speed using local tower and location features."}</p>
+      <p>{demo ? "Demo speeds and ranges are interface fixtures. Tower distances come from the loaded locations." : "The hybrid model adjusts a theoretical speed using local tower and location features."}</p>
       <dl><div><dt>{demo ? "Simulated theory" : "Theoretical speed"}</dt><dd>{result.theory_mbps.toFixed(1)} Mbps</dd></div><div><dt>Local adjustment</dt><dd>{result.local_effect_mbps > 0 ? "+" : ""}{result.local_effect_mbps.toFixed(1)} Mbps</dd></div><div><dt>Version</dt><dd>{result.model_version}</dd></div></dl>
     </details>
   </>;

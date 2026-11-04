@@ -1,6 +1,6 @@
 # Application development and model handoff
 
-The frontend and backend can be developed while the data/model work continues. The default service uses deterministic demo fixtures, with no dependency on a trained artifact. Simulated results are never represented as measured performance or calibrated intervals.
+The frontend and backend can be developed while the data/model work continues. The default service uses deterministic simulated speeds and ranges, with no dependency on a trained artifact. Tower locations come from the local processed table when available. Simulated results are never represented as measured performance or calibrated intervals.
 
 ## Local run
 
@@ -36,6 +36,14 @@ Visit http://127.0.0.1:5173. Vite proxies `/api` to `127.0.0.1:8000`. Both devel
 The default Signal focus basemap uses Stadia Maps' Alidade Smooth raster style, with fewer points of interest and muted roads so prediction results stand out. The optional Detailed streets style uses standard OpenStreetMap tiles. Both styles require internet access. Fonts load separately from Google Fonts, with system fonts as a fallback. If tiles fail, the application shows a message and the local prediction API remains usable. Neighbourhood shortcuts and coordinate entry also provide alternatives to clicking the map. Location access is requested only when the user clicks the location button.
 
 Tower markers and the three nearest tower connections are hidden by default. Enable them under Layers when inspecting the infrastructure behind a prediction. The selected location is coloured by its download-quality category; these colours represent predicted mobile speed, not a measured radio signal in dBm. The demo label remains visible on simulated results.
+
+### Demo tower data
+
+`DemoPredictor` reads `data/interim/hanoi_towers.csv` at startup using the shared tower loader. Required columns are `tower_id`, `latitude` and `longitude`; `source` is preserved when present and otherwise labelled `estimated`. IDs must be present and unique, and coordinates must be finite and within valid latitude/longitude ranges. An invalid existing table makes the service unavailable with a logged error, rather than silently replacing user data with synthetic towers.
+
+The full processed table is retained, including the data team's near-border buffer, so points inside Hanoi can use the true nearest cell locations across the boundary. Click eligibility remains restricted to Hanoi. API tower responses expose the IDs, coordinates and sources, and nearest-tower distances use the same loaded table. Speed values and ranges remain simulated in demo mode.
+
+When the file is absent, generated towers keep the demo usable without a dataset. `/api/health` reports `tower_data_source` as `dataset` or `simulated`; the banner, footer, layers and result panel distinguish tower provenance from prediction mode. Restart the backend or demo launcher after changing the CSV. Copy this CSV separately when sharing the data-enabled demo with another computer; `data/interim/` is intentionally excluded from Git.
 
 Stadia Maps permits keyless browser development on `localhost` and `127.0.0.1`, subject to development rate limits. Before public hosting, configure its domain authentication or choose another basemap provider; see the [Stadia authentication guide](https://docs.stadiamaps.com/authentication/). The original OpenStreetMap style remains available under Layers. Basemap URLs and attribution are defined in `frontend/src/basemaps.js`.
 
@@ -80,8 +88,8 @@ From the root:
 
 ```powershell
 python -m pip install -r requirements-dev.txt
-python -m ruff check backend src/speedmap/inference scripts/launch.py tests/test_api.py tests/test_predictor.py tests/test_launcher.py
-python -m pytest tests/test_api.py tests/test_predictor.py tests/test_launcher.py tests/test_boundary.py tests/test_features.py tests/test_artifacts.py -q
+python -m ruff check backend src/speedmap/inference scripts/launch.py tests/test_api.py tests/test_demo.py tests/test_predictor.py tests/test_launcher.py
+python -m pytest tests/test_api.py tests/test_demo.py tests/test_predictor.py tests/test_launcher.py tests/test_boundary.py tests/test_features.py tests/test_artifacts.py -q
 ```
 
 From `frontend/`:
@@ -99,7 +107,7 @@ The saved-model adapter is tested using serialized test estimators and real shar
 
 ## Docker and CI
 
-`docker compose up --build` builds the FastAPI backend and React frontend, serves the frontend through Nginx at http://127.0.0.1:8080, and proxies `/api` to the backend. Both services have health checks; only local interfaces are published. The default stack uses demo mode. Stop it with `docker compose down`.
+`docker compose up --build` builds the FastAPI backend and React frontend, serves the frontend through Nginx at http://127.0.0.1:8080, and proxies `/api` to the backend. Both services have health checks; only local interfaces are published. The default stack uses demo mode and mounts `data/interim/` read-only for dataset tower locations. Stop it with `docker compose down`.
 
 The backend installs the shared package in editable form inside the image because current shared settings resolve data paths relative to `src/speedmap/config.py`. Raw data and model artifacts are excluded from the build context. When integrating a real model into Docker, add its estimator dependencies and read-only mounts at `/app/artifacts/models` and `/app/data/interim`; agree those details once the actual bundle is available.
 

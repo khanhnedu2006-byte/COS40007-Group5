@@ -6,7 +6,7 @@ An interactive map for exploring mobile internet performance across **Hanoi, Vie
 
 Built for **COS40007 — Artificial Intelligence Engineering** at Swinburne University of Technology.
 
-> **Current status: local demo.** The web application runs while the team develops the prediction model. In demo mode, **speeds, ranges and tower locations are simulated**. No dataset or trained model is needed to start the website.
+> **Current status: local demo.** The web application runs while the team develops the prediction model. **Speeds and ranges are simulated.** Tower markers and distances use `data/interim/hanoi_towers.csv` when available, with simulated towers as a fallback. No trained model is needed to start the website.
 
 **Windows quick launch:** double-click **[demo.bat](demo.bat)** for simulated predictions or **[start.bat](start.bat)** for the actual saved model. Install Python and Node.js first; the launchers handle project dependencies and open the browser.
 
@@ -36,6 +36,8 @@ If Windows hides file extensions, the launchers appear as **demo** and **start**
 | --- | --- |
 | **[demo.bat](demo.bat)** | The website with simulated predictions. No dataset or model required. |
 | **[start.bat](start.bat)** | The website using the team's actual saved model and tower data. |
+
+**Use your tower data:** place the processed table at `data/interim/hanoi_towers.csv`, then restart the demo. Its tower count, IDs, coordinates, sources and nearest-tower distances come from that file. Open **Layers → Cell locations** to show the markers; they stay hidden initially to keep the map focused on performance. The demo banner identifies dataset towers while keeping the speed estimates labelled as simulated.
 
 Double-click the launcher you want. It uses this computer's Python installation and prints the selected version. On the first run, it creates `.venv/` and installs dependencies automatically; this needs internet access. A copied, broken or incompatible `.venv/` is preserved as `.venv.backup-<timestamp>/` and replaced with a fresh environment. Later runs skip installation unless the Python runtime, project location, requirements or frontend dependencies change. The browser opens at **http://127.0.0.1:5173** when both services are ready.
 
@@ -129,7 +131,7 @@ A Compose configuration is included to run the backend and frontend together. In
 docker compose up --build
 ```
 
-Open **[http://127.0.0.1:8080](http://127.0.0.1:8080)**. Nginx serves the frontend and forwards API requests to FastAPI. The Compose stack uses demo mode.
+Open **[http://127.0.0.1:8080](http://127.0.0.1:8080)**. Nginx serves the frontend and forwards API requests to FastAPI. The Compose stack uses demo mode and mounts `data/interim/` read-only so your local tower table is available inside the backend.
 
 Stop an existing backend on port `8000` before starting Compose; both setups use that port. To stop and remove the Compose containers, run this in another terminal:
 
@@ -167,8 +169,8 @@ Model mode never silently falls back to demo data. An incomplete or incompatible
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
-.\.venv\Scripts\python.exe -m ruff check backend src/speedmap/inference scripts/launch.py tests/test_api.py tests/test_predictor.py tests/test_launcher.py
-.\.venv\Scripts\python.exe -m pytest tests/test_api.py tests/test_predictor.py tests/test_launcher.py tests/test_boundary.py tests/test_features.py tests/test_artifacts.py -q
+.\.venv\Scripts\python.exe -m ruff check backend src/speedmap/inference scripts/launch.py tests/test_api.py tests/test_demo.py tests/test_predictor.py tests/test_launcher.py
+.\.venv\Scripts\python.exe -m pytest tests/test_api.py tests/test_demo.py tests/test_predictor.py tests/test_launcher.py tests/test_boundary.py tests/test_features.py tests/test_artifacts.py -q
 ```
 
 On macOS/Linux, replace `.\.venv\Scripts\python.exe` with `.venv/bin/python`.
@@ -263,4 +265,4 @@ Both workflows target pushes and pull requests to `main` and support manual runs
 
 The planned prediction pipeline uses **[Ookla Open Data](https://github.com/teamookla/ookla-open-data)** (CC BY-NC-SA 4.0) and **[OpenCelliD](https://opencellid.org/)** (CC BY-SA 4.0). The Hanoi boundary comes from **[geoBoundaries](https://www.geoboundaries.org/)** (CC BY 4.0). The default basemap is © **[Stadia Maps](https://stadiamaps.com/attribution/)**, **[OpenMapTiles](https://openmaptiles.org/)** and **[OpenStreetMap contributors](https://www.openstreetmap.org/copyright)**; the detailed style uses OpenStreetMap tiles. Local Stadia development needs no API key; public hosting needs domain authentication as described in the [application guide](docs/application.md).
 
-These credits describe the project data sources. The current demo's speeds and tower locations are simulated.
+Demo speeds and ranges are simulated. Tower locations come from the local processed dataset when present; otherwise the interface explicitly labels its simulated tower fallback. Source datasets remain subject to their attribution and licence requirements.

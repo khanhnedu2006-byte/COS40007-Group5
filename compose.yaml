@@ -5,6 +5,8 @@ services:
       dockerfile: backend/Dockerfile
     environment:
       SPEEDMAP_MODE: demo
+    volumes:
+      - ./data/interim:/app/data/interim:ro
     ports:
       - "127.0.0.1:8000:8000"
     healthcheck:
