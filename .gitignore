@@ -2,9 +2,17 @@ __pycache__/
 *.pyc
 .ipynb_checkpoints/
 .venv/
+.venv.backup-*/
+.run/
 *.egg-info/
 node_modules/
 frontend/dist/
+frontend/test-results/
+frontend/playwright-report/
+.pytest_cache/
+.ruff_cache/
+.env
+!*.env.example
 data/raw/*
 data/interim/*
 data/processed/*

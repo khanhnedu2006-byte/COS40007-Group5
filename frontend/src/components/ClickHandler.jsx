@@ -1,4 +1,8 @@
-export default function ClickHandler({ onMapClick }) {
-  // TODO: useMapEvents({ click: (e) => onMapClick(e.latlng.lat, e.latlng.lng) })
+import { useMapEvents } from "react-leaflet";
+
+export default function ClickHandler({ onMapClick, disabled }) {
+  useMapEvents({
+    click: ({ latlng }) => { if (!disabled) onMapClick(latlng.lat, latlng.lng); },
+  });
   return null;
 }
