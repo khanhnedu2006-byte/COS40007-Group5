@@ -46,6 +46,11 @@ RELIABILITY_LEVELS = [(3, "low"), (10, "medium"), (float("inf"), "high")]  # the
 TOWER_SEARCH_RADIUS_M = 3000
 NEAREST_TOWERS_IN_POPUP = 3
 
+# Ước lượng theo vùng quanh điểm click (độ chính xác cao hơn dự đoán từng ô, xem docs/data_contract.md)
+AREA_RADIUS_M = 1500
+AREA_MIN_TILES = 5  # ít hơn số ô Ookla này trong vùng thì lấy thêm điểm lưới
+AREA_GRID_STEP_M = 300
+
 # Giả định cho mô hình 3GPP (nhà mạng không công bố, dùng giá trị điển hình)
 # Một cấu hình chung cho mọi trạm (giá trị điển hình của trạm hiện đại)
 TOWER_PHYSICS = {"freq_ghz": 3.5, "bandwidth_mhz": 100, "tx_power_dbm": 46}

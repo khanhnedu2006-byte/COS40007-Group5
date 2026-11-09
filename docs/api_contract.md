@@ -47,3 +47,13 @@ In demo mode, prediction `source` is `"demo"`, `interval_kind` is `"illustrative
 ```
 
 The inference adapter calls `model.predict(features)`, `conformal.interval(predictions)` (a `(low, high)` pair), and each secondary estimator's `predict(features)`. Features use exactly `config.FEATURE_COLUMNS`, built by `PointFeaturizer` from hanoi_towers.csv, hanoi_cells.csv, hanoi_tiles.csv and the context grid (no `quarter_index`; the model is retrained each quarter instead). Context features may be NaN; all other features must be finite. All outputs must be finite and non-negative, with the download estimate inside its interval. Shared physics must be implemented before model mode can become ready.
+
+## Area estimate (1.5 km radius) — decided 9 Nov 2026
+`Predictor.predict_area(lat, lon)` returns the typical download speed of the area around the click:
+```json
+{"area_radius_m": 1500, "area_download_mbps": 118.4, "area_quality_level": "Good",
+ "area_points": 41, "area_ookla_tiles": 41}
+```
+Points = Ookla tiles within 1.5 km weighted by tests (grid points every 300 m are added where there are fewer than 5 tiles).
+Spatial CV: 77.8% correct quality level for 1.5 km areas (single tiles: 62–71%). The UI should draw the 1.5 km circle and
+word the result as "the area around this point", not as the exact speed at the point.

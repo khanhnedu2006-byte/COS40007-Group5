@@ -10,6 +10,7 @@ from speedmap import config
 from speedmap.artifacts import load_model
 from speedmap.data.towers import load_cells, load_towers
 from speedmap.features.point_features import PointFeaturizer
+from speedmap.inference.area import AreaSampler, area_estimate
 
 
 def load_tiles() -> pd.DataFrame:
@@ -35,7 +36,9 @@ class Predictor:
             raise ValueError("Tower coordinates must be finite.")
         if "source" not in self.towers:
             self.towers = self.towers.assign(source="estimated")
-        self.featurizer = PointFeaturizer(self.towers, load_cells(), load_tiles())
+        tiles = load_tiles()
+        self.featurizer = PointFeaturizer(self.towers, load_cells(), tiles)
+        self.area_sampler = AreaSampler(tiles)
         self.index = self.featurizer.tower_index
         self.version = str(self.metadata["run_id"])
         self.predict(*config.HANOI_CENTER)
@@ -73,6 +76,10 @@ class Predictor:
         if not result["download_low"] <= download <= result["download_high"]:
             raise ValueError("Conformal range must contain the estimate.")
         return result
+
+    def predict_area(self, lat: float, lon: float) -> dict:
+        """Typical download speed within config.AREA_RADIUS_M (1.5 km) of the point (more reliable than one point)."""
+        return area_estimate(self.bundle["model"].predict, self.featurizer, self.area_sampler, lat, lon, self.columns)
 
     def tower_list(self) -> list:
         return self.towers[["tower_id", "latitude", "longitude", "source"]].to_dict(orient="records")
