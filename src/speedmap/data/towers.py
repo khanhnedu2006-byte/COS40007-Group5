@@ -32,9 +32,8 @@ def load_opencellid(path=config.OPENCELLID_RAW_FILE) -> pd.DataFrame:
     return df.dropna(subset=["lat", "lon"]).reset_index(drop=True)
 
 
-def filter_hanoi(df: pd.DataFrame) -> pd.DataFrame:
-    """Keep mobile cells inside Hanoi (or within TOWER_BUFFER_KM of the border) with enough samples,
-    then merge cells at the same place into towers."""
+def filter_cells(df: pd.DataFrame) -> pd.DataFrame:
+    """Mobile cells inside Hanoi (or within TOWER_BUFFER_KM of the border) with enough samples."""
     b = config.HANOI_BBOX
     margin = config.TOWER_BUFFER_KM / 100  # ~1 độ = 100 km, lọc thô trước khi xét ranh giới
     cells = df[
@@ -44,6 +43,19 @@ def filter_hanoi(df: pd.DataFrame) -> pd.DataFrame:
         & (df["samples"] >= config.MIN_TOWER_SAMPLES)
     ].drop_duplicates(subset=["mcc", "net", "area", "cell"])
     cells = cells[boundary.inside_or_near(cells["lat"].to_numpy(), cells["lon"].to_numpy(), config.TOWER_BUFFER_KM)]
+    return cells.reset_index(drop=True)
+
+
+def cell_table(cells: pd.DataFrame) -> pd.DataFrame:
+    """Columns saved to data/interim/hanoi_cells.csv (used for cell density and operator count)."""
+    out = cells.rename(columns={"lat": "latitude", "lon": "longitude", "net": "operator"})
+    out["operator"] = out["operator"].astype(int)
+    return out[["latitude", "longitude", "operator", "radio", "samples"]]
+
+
+def filter_hanoi(df: pd.DataFrame) -> pd.DataFrame:
+    """Keep mobile cells inside Hanoi (see filter_cells), then merge cells at the same place into towers."""
+    cells = filter_cells(df)
 
     # Các cell cách nhau dưới ~100 m được coi là cùng một trạm
     d = config.TOWER_MERGE_DECIMALS
@@ -95,6 +107,10 @@ def add_osm_masts(towers: pd.DataFrame, osm: pd.DataFrame, min_gap_m: float = co
     new["inside_hanoi"] = boundary.contains(new["latitude"].to_numpy(), new["longitude"].to_numpy())
     new["source"] = "osm"
     return pd.concat([towers, new[towers.columns]], ignore_index=True)
+
+
+def load_cells(path=config.CELLS_FILE) -> pd.DataFrame:
+    return pd.read_csv(path)
 
 
 def load_towers(path=config.TOWERS_FILE) -> pd.DataFrame:
