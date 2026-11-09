@@ -30,12 +30,15 @@ def saved_model(tmp_path, monkeypatch):
         "tower_id": [1, 2, 3], "latitude": [21.0285, 21.03, 21.04],
         "longitude": [105.8542, 105.85, 105.86],
     })
+    cells = pd.DataFrame({"latitude": [21.0285, 21.03], "longitude": [105.8542, 105.85], "operator": [1, 4]})
+    tiles = pd.DataFrame({"quadkey": ["x"], "latitude": [21.029], "longitude": [105.855], "devices": [40]})
     monkeypatch.setattr("speedmap.inference.predictor.load_towers", lambda: towers)
+    monkeypatch.setattr("speedmap.inference.predictor.load_cells", lambda: cells)
+    monkeypatch.setattr("speedmap.inference.predictor.load_tiles", lambda: tiles)
     monkeypatch.setattr("speedmap.features.tower_features.theoretical_speed_mbps", lambda distances: 223.0)
     bundle = {
         "model": ConstantEstimator(133), "conformal": FixedInterval(),
         "secondary": {"upload_mbps": ConstantEstimator(31), "latency_ms": ConstantEstimator(18)},
-        "latest_quarter_index": 7,
     }
     return artifacts.save_model(bundle, "test_hybrid")
 
@@ -49,7 +52,7 @@ def test_saved_bundle_produces_valid_api_payload_and_shared_inputs(saved_model):
     assert result.model_version == saved_model.name
     features = predictor.bundle["model"].last_features
     assert list(features.columns) == config.FEATURE_COLUMNS
-    assert features["quarter_index"].iloc[0] == 7
+    assert features["operators_1km"].iloc[0] == 2
     assert features["dist_nearest_tower_m"].iloc[0] == 0
     assert len(predictor.tower_list()) == 3
 

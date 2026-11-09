@@ -1,34 +1,25 @@
-"""Adapter for the model team's saved bundle and shared feature pipeline."""
-import numpy as np
+"""Adapter for the model team's saved bundle and shared feature pipeline.
 
-<<<<<<< HEAD
-Loads the saved bundle with speedmap.artifacts.load_model("hybrid") and the tower table once.
-Must compute features with speedmap.features.point_features.PointFeaturizer (same as training),
-built once from load_towers(), load_cells() and pd.read_csv(config.TILES_FILE)
-and set quarter_index to the latest quarter stored in the bundle.
-
-Output keys (docs/api_contract.md):
-    latitude, longitude, download_mbps, download_low, download_high, upload_mbps, latency_ms,
-    quality_level, theory_mbps, local_effect_mbps, nearest_towers[{tower_id, latitude, longitude, distance_m}]
+Features are computed with speedmap.features.point_features.PointFeaturizer, exactly as in training,
+from hanoi_towers.csv, hanoi_cells.csv, hanoi_tiles.csv and data/reference/hanoi_context_grid.npz.
 """
-=======
->>>>>>> e1d5024928feffcf86d973f2c128d21d45e2066d
+import numpy as np
+import pandas as pd
+
 from speedmap import config
 from speedmap.artifacts import load_model
-from speedmap.data.towers import load_towers
-from speedmap.features.spatial import TowerIndex
-from speedmap.features.tower_features import tower_features
+from speedmap.data.towers import load_cells, load_towers
+from speedmap.features.point_features import PointFeaturizer
+
+
+def load_tiles() -> pd.DataFrame:
+    return pd.read_csv(config.TILES_FILE, dtype={"quadkey": str})
 
 
 class Predictor:
     def __init__(self, model_name: str = "hybrid", run_id: str | None = None):
-<<<<<<< HEAD
-        # TODO: bundle, metadata = load_model(model_name, run_id)
-        #       featurizer = PointFeaturizer(load_towers(), load_cells(), pd.read_csv(config.TILES_FILE, dtype={"quadkey": str}))
-        raise NotImplementedError
-=======
         self.bundle, self.metadata = load_model(model_name, run_id)
-        required = {"model", "conformal", "secondary", "latest_quarter_index"}
+        required = {"model", "conformal", "secondary"}
         if not isinstance(self.bundle, dict) or not required.issubset(self.bundle):
             raise ValueError(f"Saved bundle must include {sorted(required)}.")
         if not set(config.SECONDARY_TARGETS).issubset(self.bundle["secondary"]):
@@ -44,16 +35,16 @@ class Predictor:
             raise ValueError("Tower coordinates must be finite.")
         if "source" not in self.towers:
             self.towers = self.towers.assign(source="estimated")
-        self.index = TowerIndex(self.towers)
+        self.featurizer = PointFeaturizer(self.towers, load_cells(), load_tiles())
+        self.index = self.featurizer.tower_index
         self.version = str(self.metadata["run_id"])
         self.predict(*config.HANOI_CENTER)
->>>>>>> e1d5024928feffcf86d973f2c128d21d45e2066d
 
     def predict(self, lat: float, lon: float) -> dict:
-        features = tower_features(np.array([lat]), np.array([lon]), self.index)
-        features["quarter_index"] = self.bundle["latest_quarter_index"]
-        features = features[self.columns]
-        if not np.isfinite(features.to_numpy(dtype=float)).all():
+        features = self.featurizer.features([lat], [lon])[self.columns]
+        # Bối cảnh (dân số, đất...) được phép trống, model xử lý được; các đặc trưng còn lại phải hữu hạn
+        must_be_finite = [c for c in self.columns if c not in config.CONTEXT_FEATURES]
+        if not np.isfinite(features[must_be_finite].to_numpy(dtype=float)).all():
             raise ValueError("Shared features contain non-finite values; check the physics implementation.")
         download = float(np.asarray(self.bundle["model"].predict(features)).reshape(-1)[0])
         low, high = self.bundle["conformal"].interval(np.array([download]))

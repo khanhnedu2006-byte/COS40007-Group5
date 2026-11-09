@@ -43,8 +43,7 @@ In demo mode, prediction `source` is `"demo"`, `interval_kind` is `"illustrative
 ## Saved model bundle (`artifacts/models/hybrid/<run>/model.joblib`)
 ```python
 {"model": HybridModel, "conformal": ConformalInterval,
- "secondary": {"upload_mbps": XGBRegressor, "latency_ms": XGBRegressor},
- "latest_quarter_index": int}
+ "secondary": {"upload_mbps": XGBRegressor, "latency_ms": XGBRegressor}}
 ```
 
-The inference adapter calls `model.predict(features)`, `conformal.interval(predictions)` (a `(low, high)` pair), and each secondary estimator's `predict(features)`. Features use exactly `config.FEATURE_COLUMNS`, with `quarter_index` from the bundle. All outputs must be finite and non-negative, with the download estimate inside its interval. Shared physics must be implemented before model mode can become ready.
+The inference adapter calls `model.predict(features)`, `conformal.interval(predictions)` (a `(low, high)` pair), and each secondary estimator's `predict(features)`. Features use exactly `config.FEATURE_COLUMNS`, built by `PointFeaturizer` from hanoi_towers.csv, hanoi_cells.csv, hanoi_tiles.csv and the context grid (no `quarter_index`; the model is retrained each quarter instead). Context features may be NaN; all other features must be finite. All outputs must be finite and non-negative, with the download estimate inside its interval. Shared physics must be implemented before model mode can become ready.
