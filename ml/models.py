@@ -10,6 +10,9 @@ import numpy as np
 import pandas as pd
 
 from ml import config
+from speedmap.models.baselines import (
+    RandomForestBaseline as _CanonicalRandomForestBaseline,
+)
 
 
 class KNNBaseline:
@@ -23,15 +26,13 @@ class KNNBaseline:
         raise NotImplementedError
 
 
-class RandomForestBaseline:
-    name = "random_forest"
+class RandomForestBaseline(_CanonicalRandomForestBaseline):
+    """Compatibility name for the canonical Random Forest baseline.
 
-    def fit(self, X: pd.DataFrame, y: np.ndarray, sample_weight=None):
-        # TODO: RandomForestRegressor trên config.FEATURE_COLUMNS trừ theory_mbps
-        raise NotImplementedError
-
-    def predict(self, X: pd.DataFrame) -> np.ndarray:
-        raise NotImplementedError
+    New training code lives under ``src/speedmap`` so the backend, notebooks,
+    and scripts all serialize the same class. This subclass keeps older
+    imports from ``ml.models`` working without maintaining a second model.
+    """
 
 
 class HybridModel:
