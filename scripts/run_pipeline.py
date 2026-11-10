@@ -3,7 +3,7 @@
 Usage (from the project root):
     python scripts/run_pipeline.py --step all
     python scripts/run_pipeline.py --step towers
-Steps: towers, features, baselines, hybrid, all
+Steps: towers, context, features, baselines, hybrid, all
 """
 import argparse
 import sys
@@ -17,27 +17,41 @@ from speedmap import config  # noqa: E402
 def run_towers():
     from speedmap.data import towers
 
-    hanoi = towers.add_osm_masts(towers.filter_hanoi(towers.load_opencellid()), towers.load_osm_masts())
+    raw = towers.load_opencellid()
+    hanoi = towers.add_osm_masts(towers.filter_hanoi(raw), towers.load_osm_masts())
     config.TOWERS_FILE.parent.mkdir(parents=True, exist_ok=True)
     hanoi.to_csv(config.TOWERS_FILE, index=False)
     print(f"{len(hanoi):,} towers -> {config.TOWERS_FILE}  {hanoi['source'].value_counts().to_dict()}")
+    cells = towers.cell_table(towers.filter_cells(raw))
+    cells.to_csv(config.CELLS_FILE, index=False)
+    print(f"{len(cells):,} cells -> {config.CELLS_FILE}")
+
+
+def run_context():
+    from speedmap.data.context import build_context_grid, save_context_grid
+
+    layers = build_context_grid()
+    if not layers:
+        raise SystemExit("No context data found: run python scripts/fetch_context_data.py first")
+    save_context_grid(layers)
+    print(f"{len(layers)} layers {sorted(layers)} -> {config.CONTEXT_GRID_FILE}")
 
 
 def run_features():
     from speedmap.data import ookla, towers
-    from speedmap.features.build import build_tile_table, build_training_table
+    from speedmap.features.build import build_tile_table, build_training_table, pool_tiles
 
     clean = ookla.clean(ookla.load_raw())
     config.OOKLA_CLEAN_FILE.parent.mkdir(parents=True, exist_ok=True)
     clean.to_csv(config.OOKLA_CLEAN_FILE, index=False)
-    hanoi_towers = towers.load_towers()
-    config.TRAIN_FILE.parent.mkdir(parents=True, exist_ok=True)
-    train = build_training_table(clean, hanoi_towers)
-    train.to_csv(config.TRAIN_FILE, index=False)
-    print(f"{len(train):,} rows -> {config.TRAIN_FILE}")
-    tiles = build_tile_table(clean, hanoi_towers)
+    hanoi_towers, cells = towers.load_towers(), towers.load_cells()
+    config.TILES_FILE.parent.mkdir(parents=True, exist_ok=True)
+    tiles = build_tile_table(clean, hanoi_towers, cells)
     tiles.to_csv(config.TILES_FILE, index=False)
     print(f"{len(tiles):,} tiles -> {config.TILES_FILE}")
+    train = build_training_table(clean, hanoi_towers, cells, pool_tiles(clean))
+    train.to_csv(config.TRAIN_FILE, index=False)
+    print(f"{len(train):,} rows -> {config.TRAIN_FILE}")
 
 
 def run_baselines():
@@ -50,7 +64,7 @@ def run_hybrid():
     raise NotImplementedError
 
 
-STEPS = {"towers": run_towers, "features": run_features, "baselines": run_baselines, "hybrid": run_hybrid}
+STEPS = {"towers": run_towers, "context": run_context, "features": run_features, "baselines": run_baselines, "hybrid": run_hybrid}
 
 
 def main() -> None:

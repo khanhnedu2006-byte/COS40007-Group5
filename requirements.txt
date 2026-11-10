@@ -10,3 +10,4 @@ fastapi
 uvicorn
 jupyter
 pytest
+rasterio

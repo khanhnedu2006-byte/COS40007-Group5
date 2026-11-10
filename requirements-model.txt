@@ -1,0 +1,3 @@
+# Runtime for the planned saved hybrid bundle; no TensorFlow training dependency.
+-r requirements-app.txt
+xgboost>=2,<4
