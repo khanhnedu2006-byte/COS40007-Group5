@@ -1,6 +1,6 @@
 # Optional public testing
 
-The app runs locally by default. `start.bat`, `demo.bat`, the Python launcher and ordinary `docker compose up` do not start a public tunnel. Public testing is an explicit Docker Compose profile; it uses the same frontend, API, dataset and 1.5 km area estimates as the official local run.
+The app runs locally by default. `start.bat`, `demo.bat`, the Python launcher and ordinary `docker compose up` do not start a public tunnel. Public testing is an explicit Docker Compose profile; it uses the same frontend, API, dataset and 500 m area estimates as the official local run.
 
 This first hosting option uses a [Cloudflare Quick Tunnel](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/). It gives the running application a temporary HTTPS address without a Cloudflare account or domain. It is for testing, not permanent hosting: the address changes between tunnel sessions, and availability depends on the host computer, its internet connection and the tunnel service. Anyone with the URL can access the application while the tunnel runs.
 
@@ -21,7 +21,7 @@ Stop an existing Python launcher or manually started API on port 8000 before sta
 docker compose up -d --build --wait
 ```
 
-Open **http://127.0.0.1:8080** and select a location. Check the prediction and 1.5 km circle before enabling public access. The default mode is `actual`, selecting recorded data or the registered trained model.
+Open **http://127.0.0.1:8080** and select a location. Check the prediction and 500 m circle before enabling public access. The default mode is `actual`, selecting recorded data or the registered trained model.
 
 For a simulated test without local data, set the mode first:
 

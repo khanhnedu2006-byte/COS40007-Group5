@@ -18,13 +18,13 @@ TILES = pd.DataFrame({
 
 def test_tiles_inside_radius_are_used_with_test_weights():
     pts = AreaSampler(TILES).points(21.0285, 105.8542)
-    assert (pts["source"] == "ookla_tile").sum() == 7          # ô thứ 8 ở xa ~35 km
-    assert pts["weight"].sum() == 55
+    assert (pts["source"] == "ookla_tile").sum() == 3  # Only the first three tile centres are within 500 m.
+    assert pts.loc[pts["source"] == "ookla_tile", "weight"].sum() == 35
 
 
 def test_sparse_area_adds_grid_points():
     pts = AreaSampler(TILES).points(21.30, 105.60)               # chỉ 1 ô Ookla trong vùng
-    assert (pts["source"] == "grid").sum() > 50
+    assert (pts["source"] == "grid").sum() == 9
     assert np.hypot((pts.latitude - 21.30) * 110_570, (pts.longitude - 105.60) * 103_900).max() <= config.AREA_RADIUS_M + 50
 
 

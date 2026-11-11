@@ -74,7 +74,7 @@ class Predictor:
         return result
 
     def predict_area(self, lat: float, lon: float) -> dict:
-        """Typical download speed within config.AREA_RADIUS_M (1.5 km) of the point (more reliable than one point)."""
+        """Typical download speed within config.AREA_RADIUS_M (500 m) of the point (more reliable than one point)."""
         return area_estimate(self.bundle["model"].predict, self.featurizer, self.area_sampler, lat, lon, self.columns)
 
     def tower_list(self) -> list:

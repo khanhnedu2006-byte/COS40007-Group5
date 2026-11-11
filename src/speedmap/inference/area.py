@@ -1,4 +1,4 @@
-"""Area estimate: typical speed within config.AREA_RADIUS_M (1.5 km) of a clicked point.   Owner: Person 1/3
+"""Area estimate: typical speed within config.AREA_RADIUS_M (500 m) of a clicked point.   Owner: Person 1/3
 
 Why: one Ookla tile is noisy; the average over the tiles around a point is much more reliable
 (spatial CV: about 78% correct quality level for 1.5 km circles, 62–71% for single tiles).

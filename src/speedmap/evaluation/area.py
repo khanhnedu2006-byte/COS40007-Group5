@@ -1,4 +1,4 @@
-"""Area-level evaluation for the 1.5 km click radius.   Owner: Person 2 (helper written by Person 1)
+"""Area-level evaluation for the 500 m click radius.   Owner: Person 2 (helper written by Person 1)
 
 Each tile centre acts as a click. Truth = test-weighted log mean of the MEASURED speeds of the tiles in the
 circle; prediction = same pooling of the out-of-fold PREDICTED speeds. Only circles with >= min_tests tests count.

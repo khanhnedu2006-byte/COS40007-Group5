@@ -80,7 +80,7 @@ def test_official_model_api_exposes_area_estimate(saved_model, monkeypatch):
         assert response.status_code == 200
         result = response.json()
         assert result["source"] == "model"
-        assert result["area_radius_m"] == 1500
+        assert result["area_radius_m"] == 500
         assert result["area_download_mbps"] == 133
         assert result["area_quality_level"] == config.quality_level(133)
         assert result["area_points"] > 1

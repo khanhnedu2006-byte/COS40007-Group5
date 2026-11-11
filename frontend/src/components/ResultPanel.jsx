@@ -40,7 +40,7 @@ export default function ResultPanel({ result, error, loading, selected, onRetry 
       <p className="quality-description">{descriptions[result.quality_level]}</p>
       <section className="area-estimate" aria-label="Area estimate">
         <h3>The area around this point</h3>
-        <p>{((result.area_radius_m ?? 1500) / 1000).toLocaleString()} km radius · outlined on the map</p>
+        <p>{formatDistance(result.area_radius_m ?? 500)} radius · outlined on the map</p>
         {result.area_download_mbps != null ? <>
           <strong>{result.area_download_mbps.toFixed(1)} Mbps <span>· {result.area_quality_level}</span></strong>
           <p>{dataMode ? "Recorded download average" : "Predicted typical download"} across {result.area_points} {dataMode ? "tiles" : "sample points"}.</p>

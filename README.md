@@ -37,7 +37,7 @@ If Windows hides file extensions, the launchers appear as **demo** and **start**
 | **[demo.bat](demo.bat)** | The website with simulated predictions. No dataset or model required. |
 | **[start.bat](start.bat)** | The website using current Ookla measurements and tower data; selects a saved hybrid model when available. |
 
-The official run includes the **1.5 km prediction radius circle** and area summary in both recorded-data and model modes, using the same frontend as the demo.
+The official run includes the **500 m prediction radius circle** and area summary in both recorded-data and model modes, using the same frontend as the demo.
 
 **Required data for `start.bat`:** keep `data/interim/hanoi_towers.csv` and `data/processed/hanoi_tiles.csv` in place. The training pipeline uses `data/processed/hanoi_train.csv` (24,679 tile-quarter rows). These local data folders are excluded from Git, so copy them when moving to another computer. Restart the backend after replacing data. Tower markers stay optional under **Layers > Cell locations**.
 
@@ -120,7 +120,7 @@ python3 scripts/launch.py model  # Require the saved trained model
 python3 scripts/launch.py demo   # Simulated speeds; can run without the local dataset
 ```
 
-After selecting a location, official runs show the **1.5 km radius circle** and an area summary. Recorded-data mode averages the tiles inside the circle using their test counts; if none are present, it reports that an area average is unavailable. Model mode uses the shared model area sampler. The point estimate remains separate from the area estimate. Demo mode shows the circle but does not calculate an area average.
+After selecting a location, official runs show the **500 m radius circle** and an area summary. Recorded-data mode averages the tiles inside the circle using their test counts; if none are present, it reports that an area average is unavailable. Model mode uses the shared model area sampler. The point estimate remains separate from the area estimate. Demo mode shows the circle but does not calculate an area average.
 
 #### 4. Manual installation and startup (alternative)
 
@@ -159,7 +159,7 @@ curl -fsS http://127.0.0.1:8000/api/health
 curl -fsS 'http://127.0.0.1:8000/api/predict?lat=21.0285&lon=105.8542'
 ```
 
-Health should contain `"ready": true` and mode `data` or `model`. Prediction output should include `"area_radius_m": 1500`; `area_download_mbps` is populated when an area estimate is available. The website header shows **Data estimates** or **Model connected**. Select a location to see the outlined radius and the area summary.
+Health should contain `"ready": true` and mode `data` or `model`. Prediction output should include `"area_radius_m": 500`; `area_download_mbps` is populated when an area estimate is available. The website header shows **Data estimates** or **Model connected**. Select a location to see the outlined radius and the area summary.
 
 | Symptom | What to check |
 | --- | --- |
@@ -277,7 +277,7 @@ docker compose --profile online up -d --build
 docker compose logs -f public-tunnel
 ```
 
-Open the printed `https://?trycloudflare.com` address on another network. The official frontend and API, including the 1.5 km radius, are served together. The host must remain running; this is temporary public testing rather than permanent hosting.
+Open the printed `https://?trycloudflare.com` address on another network. The official frontend and API, including the 500 m radius, are served together. The host must remain running; this is temporary public testing rather than permanent hosting.
 
 ```sh
 # End public access while keeping the local Docker site running
