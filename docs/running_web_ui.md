@@ -5,11 +5,11 @@ Hanoi Signal has a FastAPI backend on port **8000** and a React/Vite frontend on
 ## Choose the operating mode
 
 - **`actual` (default):** selects the registered regional model if its `LATEST` pointer or a pinned run exists; otherwise selects recorded-data mode. A broken registered model reports an error instead of silently switching modes.
-- **`data`:** uses current recorded Ookla tiles and tower locations without a trained model. Needs `data/interim/hanoi_towers.csv` and `data/processed/hanoi_tiles.csv`. The main reading is the test-weighted regional recorded speed, where observed tiles exist within 1.5 km. Regions without observations are identified as unavailable.
+- **`data`:** uses current recorded Ookla tiles and tower locations without a trained model. Needs `data/interim/hanoi_towers.csv` and `data/processed/hanoi_tiles.csv`. The main reading is the test-weighted regional recorded speed, where observed tiles exist within 500 m. Regions without observations are identified as unavailable.
 - **`model`:** strictly loads the saved regional baseline. Requires a model from [the training guide](training.md), matching processed towers/cells/tiles, and reference data. Missing, stale or incompatible artifacts leave the API unavailable.
 - **`demo`:** generates simulated regional speeds without a trained model. Uses the local tower table when available; otherwise uses simulated towers. An invalid existing tower file is reported rather than silently replaced. Simulated speeds are labeled separately from tower provenance.
 
-For real-data preparation, follow [Fetch and prepare data](fetching_data.md). Model output is typical download performance within **1.5 km** of a chosen centre. It is not a live speed test or an operator-specific prediction.
+For real-data preparation, follow [Fetch and prepare data](fetching_data.md). Model output is typical download performance within **500 m** of a chosen centre. It is not a live speed test or an operator-specific prediction.
 
 ## Option A: launch both services together
 

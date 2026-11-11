@@ -10,7 +10,7 @@ test.beforeEach(async ({ page }) => {
 test("explore a neighbourhood and display the regional simulated estimate", async ({ page }) => {
   await page.getByRole("button", { name: "Hoàn Kiếm", exact: true }).click();
   await expect(page.locator(".download-value")).toContainText("Mbps");
-  await expect(page.locator(".area-context")).toContainText("within 1.5 km");
+  await expect(page.locator(".area-context")).toContainText("within 0.5 km");
   await expect(page.locator(".area-support")).toContainText("Simulated across");
   await expect(page.locator(".range-section, .secondary-metrics")).toHaveCount(0);
   await expect(page.locator(".nearest-row")).toHaveCount(3);
@@ -107,7 +107,7 @@ test("a quiet basemap and selected speed take priority over optional tower detai
   await page.getByRole("button", { name: "Map layers", exact: true }).click();
   await page.getByRole("button", { name: "Hoàn Kiếm", exact: true }).click();
   await expect(page.locator(".selected-tooltip")).toContainText("Mbps");
-  await expect(page.locator(".selected-tooltip")).toContainText("1.5 km area");
+  await expect(page.locator(".selected-tooltip")).toContainText("0.5 km area");
   await expect(page.locator(".selected-tooltip")).toContainText("Good connection");
   await expect(page.locator(".selected-tooltip")).toContainText("simulated");
   await expect(page.locator(".cluster-count")).toHaveCount(0);
@@ -162,16 +162,16 @@ test("model estimates identify sparse regional support and omit point metrics", 
     status: 'ok', ready: true, mode: 'model', model_loaded: true, model_version: 'regional-test', tower_count: 3,
   } }));
   await page.route('**/api/predict?*', (route) => route.fulfill({ json: {
-    latitude: 21.0285, longitude: 105.8542, area_radius_m: 1500,
+    latitude: 21.0285, longitude: 105.8542, area_radius_m: 500,
     area_download_mbps: 123.4, area_quality_level: 'Good',
-    area_points: 82, area_ookla_tiles: 1, area_grid_points: 81,
+    area_points: 10, area_ookla_tiles: 1, area_grid_points: 9,
     nearest_towers: [], source: 'model', model_name: 'knn', model_version: 'regional-test',
   } }));
   await page.reload();
   await expect(page.getByText('Model connected', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Hoàn Kiếm', exact: true }).click();
   await expect(page.locator('.download-value')).toContainText('123.4');
-  await expect(page.locator('.area-support')).toContainText('Sparse coverage: 81 grid points added');
+  await expect(page.locator('.area-support')).toContainText('Sparse coverage: 9 grid points added');
   await expect(page.locator('.result-type')).toHaveText('ESTIMATE');
   await expect(page.locator('.range-section, .secondary-metrics')).toHaveCount(0);
   await page.getByText('Behind the estimate', { exact: true }).click();

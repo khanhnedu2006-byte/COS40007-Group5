@@ -47,7 +47,7 @@ TOWER_SEARCH_RADIUS_M = 3000
 NEAREST_TOWERS_IN_POPUP = 3
 
 # Ước lượng theo vùng quanh điểm click (độ chính xác cao hơn dự đoán từng ô, xem docs/data_contract.md)
-AREA_RADIUS_M = 1500
+AREA_RADIUS_M = 500
 AREA_MIN_TILES = 5  # ít hơn số ô Ookla này trong vùng thì lấy thêm điểm lưới
 AREA_GRID_STEP_M = 300
 

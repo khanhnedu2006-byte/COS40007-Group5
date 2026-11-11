@@ -49,7 +49,7 @@ def test_baseline_serves_regional_response_without_physics(saved_model):
     result = PredictionResponse.model_validate(predictor.predict(21.0285, 105.8542))
     assert result.source == 'model'
     assert result.area_download_mbps == 133
-    assert result.area_radius_m == 1500
+    assert result.area_radius_m == 500
     assert result.area_quality_level == 'Good'
     assert result.area_ookla_tiles == 1
     assert result.area_grid_points > 0
@@ -99,3 +99,13 @@ def test_unversioned_model_is_rejected(saved_model):
     path.write_text(json.dumps(metadata))
     with pytest.raises(ValueError, match='provenance'):
         Predictor()
+
+
+def test_pinned_older_run_keeps_its_evaluated_radius(saved_model):
+    import joblib
+
+    path = saved_model / 'model.joblib'
+    bundle = joblib.load(path)
+    bundle['area_radius_m'] = 1500
+    joblib.dump(bundle, path)
+    assert Predictor().predict(21.0285, 105.8542)['area_radius_m'] == 1500

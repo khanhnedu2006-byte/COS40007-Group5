@@ -3,6 +3,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from speedmap import config
+
 
 class Tower(BaseModel):
     tower_id: int | str
@@ -40,7 +42,7 @@ class PredictionResponse(BaseModel):
     longitude: float = Field(ge=-180, le=180, allow_inf_nan=False)
     area_download_mbps: float | None = Field(default=None, ge=0, allow_inf_nan=False)
     area_quality_level: Literal["Poor", "Fair", "Good", "Excellent"] | None = None
-    area_radius_m: float = Field(default=1500, gt=0, allow_inf_nan=False)
+    area_radius_m: float = Field(default=config.AREA_RADIUS_M, gt=0, allow_inf_nan=False)
     area_points: int | None = Field(default=None, gt=0)
     area_ookla_tiles: int | None = Field(default=None, ge=0)
     area_grid_points: int = Field(default=0, ge=0)

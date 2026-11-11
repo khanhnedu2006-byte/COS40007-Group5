@@ -33,7 +33,7 @@ The training table is `data/processed/hanoi_tiles.csv`, containing one observati
 
 Use five identical `GroupKFold` splits for both models, grouping by 2 km `block_id`. Every tile is held out once. Predict **all** held-out rows and write their values back to their original row positions. Never score predictions from the model fitted on all data.
 
-Tile metrics use held-out rows with at least three tests. Regional metrics call `area_level_scores(tiles, out_of_fold_predictions)` on the complete aligned vectors. Each tile centre acts as a click: collect measured tile centres within 1.5 km, then compute the test-weighted log mean of actual speeds and, separately, predicted speeds. Only circles with at least 30 total tests are scored. Each qualifying circle has equal influence on the reported metric; test counts weight pooling within it.
+Tile metrics use held-out rows with at least three tests. Regional metrics call `area_level_scores(tiles, out_of_fold_predictions)` on the complete aligned vectors. Each tile centre acts as a click: collect measured tile centres within 500 m, then compute the test-weighted log mean of actual speeds and, separately, predicted speeds. Only circles with at least 30 total tests are scored. Each qualifying circle has equal influence on the reported metric; test counts weight pooling within it.
 
 MAE and RMSE use scikit-learn's `mean_absolute_error` and `root_mean_squared_error`. Quality accuracy uses `accuracy_score` after assigning Poor (<15 Mbps), Fair (15–<100), Good (100–<200), or Excellent (>=200). Within-one-level accuracy and support coverage are project-specific calculations. The majority baseline predicts the most common true regional category.
 
@@ -52,7 +52,21 @@ Evidence is saved to `artifacts/reports/regional/<run>/`:
 
 Use a compatible runtime, including the recorded scikit-learn version, to load joblib artifacts. Supply the matching processed tiles, towers, cells and context grid when serving them. Pin the run with `SPEEDMAP_MODEL_RUN` and restart the API after changing it.
 
-## Completed comparison: 11 November 2026
+## Current comparison: 500 m
+
+Run `20261111-152722` reran the five identical spatial folds on the same 5,212 pooled tiles and refitted the selected winner. The scoring radius is **500 m**; the 2 km CV blocks, model settings, data, and 30-test minimum are unchanged.
+
+- **Random Forest selected:** regional MAE **33.539987 Mbps**, exact-quality accuracy **69.5438%**, within-one-level accuracy **99.2602%**.
+- **KNN:** regional MAE **35.955053 Mbps**, exact-quality accuracy **68.1874%**, within-one-level accuracy **98.5203%**.
+- **Support:** **811 / 5,212 regions (15.5602%)** meet the evaluation threshold. Majority-quality baseline: **68.6806%** on those regions. The small margin over the majority baseline limits what exact-category accuracy alone demonstrates.
+
+Tile-centre spacing is at least approximately **569 m** in the current data. A 500 m circle centred on a measured tile therefore contains just that one measured tile. Arbitrary UI centres can include several tiles; at Hoàn Kiếm the current model samples three measured centres and nine grid points. The unchanged sparse-area rule adds a 300 m grid whenever fewer than five measured centres lie within the circle. This produces nine grid points for a 500 m circle, including its centre. Evaluation has targets only at measured centres and does not validate those extra grid samples.
+
+Changing this radius changes regional pooling and model selection, not the per-tile training inputs. Refitting is not inherently necessary just to pool at another radius, but the old 1.5 km metrics do not apply. Here the 500 m comparison selected a different winner, so the final Random Forest was fitted and saved in a new bundle with `area_radius_m=500`. Old runs keep their saved radius when explicitly pinned. Restart the API and clear any old `SPEEDMAP_MODEL_RUN` pin to load the new `LATEST` run.
+
+The 500 m output is more local, but does not establish finer ground-truth resolution or change KNN's ten-neighbour search. Coverage and eligible regions differ from the 1.5 km evaluation, so the accuracy percentages are not directly comparable.
+
+## Historical comparison: 1.5 km, 11 November 2026
 
 Run `20261111-133102` used **5,212 tiles**, pooled over **2025 Q4–2026 Q3**, in **831 spatial blocks**. Of the tile-centred circles, **4,175 (80.10%)** met the 30-test requirement.
 
@@ -62,7 +76,7 @@ Run `20261111-133102` used **5,212 tiles**, pooled over **2025 Q4–2026 Q3**, i
 
 ## Interpretation and limits
 
-These are spatial out-of-fold **model-selection estimates**, not independent final holdout results. Spatial blocks prevent sharing the same block between train and test, but adjacent blocks can cross folds. Overlapping circles share observations, and a circle can combine out-of-fold predictions made by different fitted models. Results therefore do not measure generalization to an entirely unseen 1.5 km region with a spatial exclusion buffer.
+These are spatial out-of-fold **model-selection estimates**, not independent final holdout results. Spatial blocks prevent sharing the same block between train and test, but adjacent blocks can cross folds. Overlapping circles share observations, and a circle can combine out-of-fold predictions made by different fitted models. Results therefore do not measure generalization to an entirely unseen region with a spatial exclusion buffer.
 
 Evaluation uses measured tile centres only. Sparse production circles add grid samples, which have no measured targets and are not covered by the regional accuracy claim. Sampling weights describe where tests were observed, not uniform population or land-area coverage. Excluded low-support circles may perform differently. The four-quarter pool estimates typical recent performance rather than future-quarter forecasting, live network load, or a particular operator's service. No calibrated regional uncertainty interval is supplied.
 
@@ -89,3 +103,9 @@ python model.py
 ```
 
 That exercise's split and metrics are separate from the spatial regional comparison. Its outputs do not replace `area_level_scores` on spatial out-of-fold predictions, and its trained network is not loaded by the regional Web UI.
+
+## Intel scikit-learn acceleration
+
+`patch_sklearn()` is already present before scikit-learn imports in the legacy individual KNN/Random Forest scripts. It does not accelerate the current canonical baseline configuration: haversine/BallTree KNN is unsupported, and the weighted Random Forest with bootstrapping falls back to standard scikit-learn. This was checked with the installed scikit-learn 1.9.1 / scikit-learn-intelex 2026.2.0; verbose dispatch confirmed fallback for both forest fit and predict. Adding patch calls to metrics, splitters, or BallTree helpers would not speed this run.
+
+The geographic metric and test-count training weights are preserved. No new acceleration dependency or globally patched estimator is introduced by the 500 m change. If settings change to a supported configuration later, patch once before estimator imports and record both library versions; accelerated serialized estimators also require compatible Intel dependencies when loaded. See the [official supported algorithms](https://github.com/uxlfoundation/scikit-learn-intelex/blob/main/doc/sources/algorithms.rst) and [patching guide](https://github.com/uxlfoundation/scikit-learn-intelex/blob/main/doc/sources/patching.rst).

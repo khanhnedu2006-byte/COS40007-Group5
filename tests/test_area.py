@@ -9,7 +9,7 @@ from speedmap.inference.area import AreaSampler, area_estimate, weighted_log_mea
 
 TILES = pd.DataFrame({
     "quadkey": [str(i) for i in range(8)],
-    "latitude": [21.0285 + 0.002 * i for i in range(7)] + [21.30],
+    "latitude": [21.0285 + 0.0005 * i for i in range(7)] + [21.30],
     "longitude": [105.8542] * 7 + [105.60],
     "tests": [10, 20, 5, 5, 5, 5, 5, 50],
     "download_mbps": [120, 80, 150, 90, 110, 130, 100, 20],
@@ -24,7 +24,7 @@ def test_tiles_inside_radius_are_used_with_test_weights():
 
 def test_sparse_area_adds_grid_points():
     pts = AreaSampler(TILES).points(21.30, 105.60)               # chỉ 1 ô Ookla trong vùng
-    assert (pts["source"] == "grid").sum() > 50
+    assert (pts["source"] == "grid").sum() == 9
     assert np.hypot((pts.latitude - 21.30) * 110_570, (pts.longitude - 105.60) * 103_900).max() <= config.AREA_RADIUS_M + 50
 
 
@@ -79,3 +79,15 @@ def test_dense_and_empty_regions_report_actual_sampling_support():
 def test_nonfinite_inference_cannot_be_hidden_by_pooling():
     with pytest.raises(ValueError, match='finite'):
         weighted_log_mean([np.nan, 100], [1, 2])
+
+
+def test_default_radius_excludes_measurements_between_500_and_1500_metres(monkeypatch):
+    monkeypatch.setattr(config, "AREA_MIN_TILES", 1)
+    tiles = pd.DataFrame({"latitude": [21.0, 21.0072], "longitude": [105.85, 105.85],
+                          "tests": [40, 40], "download_mbps": [50, 200]})
+    sampler = AreaSampler(tiles)
+    assert len(sampler.points(21.0, 105.85)) == 1
+    assert len(sampler.points(21.0, 105.85, radius_m=1500)) == 2
+    score = area_level_scores(tiles, [50, 100])
+    assert score["radius_m"] == 500
+    assert score["mae_mbps"] == pytest.approx(50)

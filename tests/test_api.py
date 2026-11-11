@@ -28,7 +28,7 @@ def test_inside_points_return_consistent_complete_predictions(client, lat, lon):
     assert result == client.get("/api/predict", params={"lat": lat, "lon": lon}).json()
     assert result["source"] == "demo" and result["model_name"] == "simulated"
     assert result["area_download_mbps"] >= 0
-    assert result["area_radius_m"] == 1500
+    assert result["area_radius_m"] == 500
     assert result["area_points"] == result["area_grid_points"] > 1
     assert result["area_ookla_tiles"] == 0
     assert all(result.get(key) is None for key in ("download_mbps", "upload_mbps", "latency_ms", "download_low", "theory_mbps"))

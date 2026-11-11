@@ -1,4 +1,4 @@
-"""Area estimate: typical speed within config.AREA_RADIUS_M (1.5 km) of a clicked point.   Owner: Person 1/3
+"""Area estimate: typical speed within config.AREA_RADIUS_M (500 m) of a clicked point.   Owner: Person 1/3
 
 Scores for the current training run are saved under artifacts/reports/regional.
 

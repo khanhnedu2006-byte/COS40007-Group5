@@ -27,7 +27,7 @@ export default function ResultPanel({ result, error, loading, selected, onRetry 
   const demo = result.source === "demo";
   const dataMode = result.source === "data";
   const simulatedTowers = result.nearest_towers.every((tower) => tower.source === "simulated");
-  if (result.area_download_mbps == null) return <article className="snapshot result-card"><h3>No recorded region available</h3><p>No measured tiles lie within 1.5 km of this point. Choose another region or use a trained model for grid-backed estimates.</p></article>;
+  if (result.area_download_mbps == null) return <article className="snapshot result-card"><h3>No recorded region available</h3><p>No measured tiles lie within {(result.area_radius_m / 1000).toFixed(1)} km of this point. Choose another region or use a trained model for grid-backed estimates.</p></article>;
   const radius = `${(result.area_radius_m / 1000).toFixed(1)} km`;
   const level = result.area_quality_level;
   return <>

@@ -2,7 +2,7 @@
 
 ### Good places. Better signal.
 
-An interactive map for exploring mobile internet performance across **Hanoi, Vietnam**. Choose a neighbourhood or click a location to see typical download speed within a **1.5 km radius**, its quality level, and the nearest cell locations.
+An interactive map for exploring mobile internet performance across **Hanoi, Vietnam**. Choose a neighbourhood or click a location to see typical download speed within a **500 m radius**, its quality level, and the nearest cell locations.
 
 Built for **COS40007 — Artificial Intelligence Engineering** at Swinburne University of Technology.
 
@@ -22,7 +22,7 @@ Built for **COS40007 — Artificial Intelligence Engineering** at Swinburne Univ
 
 - **Hanoi only:** map navigation stays around the city, with predictions restricted to its administrative boundary.
 - **Pick a place:** click the map, enter coordinates, or try Hoàn Kiếm, West Lake, Cầu Giấy and Hà Đông.
-- **Understand the region:** typical download speed, a quality level and a 1.5 km circle. Sampling support identifies sparse regions that need extra grid points.
+- **Understand the region:** typical download speed, a quality level and a 500 m circle. Sampling support identifies sparse regions that need extra grid points.
 - **Focus on performance:** a quiet basemap and a selected location coloured by download quality. Tower markers and nearest-tower connections are optional under Layers.
 - **Use desktop or mobile:** a responsive interface with loading, error and reconnection states.
 
@@ -175,7 +175,7 @@ The feature step skips physics by default and leaves the unused `theory_mbps` co
 
 The model is saved under `artifacts/models/regional/<run>/`. Evidence is saved under `artifacts/reports/regional/<run>/`: `summary.csv`, `fold_metrics.csv`, `out_of_fold.csv` and `manifest.json`. Each parent directory has a `LATEST` pointer. Read the [training and evaluation guide](docs/training.md) for metric definitions and limitations. The older individual baseline scripts evaluate tile-quarter data and do not create the app's regional bundle.
 
-The 11 November 2026 run selected **KNN**: regional MAE **20.80 Mbps**, quality-level accuracy **73.84%**, compared with Random Forest's **24.03 Mbps** and **63.26%**. Scores cover **4,175 of 5,212** tile-centred regions (80.10%), with at least 30 tests per region. The majority-quality baseline is **56.53%**. These are out-of-fold model-selection results, not an independent holdout estimate.
+The current **500 m** run (`20261111-152722`) selected **Random Forest**: regional MAE **33.54 Mbps**, quality-level accuracy **69.54%**, compared with KNN's **35.96 Mbps** and **68.19%**. Only **811 of 5,212** tile-centred regions (15.56%) meet the unchanged 30-test threshold; majority-quality accuracy is **68.68%** on that subset. These are spatial out-of-fold model-selection results, not an independent holdout estimate. The [training guide](docs/training.md) retains the historical 1.5 km comparison and explains the limits of the smaller radius.
 
 Double-click **`start.bat`**, or start the backend manually on macOS/Linux:
 

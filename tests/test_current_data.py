@@ -64,10 +64,10 @@ def test_actual_start_uses_recorded_measurements_and_current_towers(current_data
         assert result["nearest_towers"][0]["tower_id"] == "NEW-A"
         assert result["nearest_towers"][0]["distance_m"] == 0
         assert result["data_support"]["tests"] == 29
-        assert result["area_radius_m"] == 1500
-        expected_area = np.expm1(np.average(np.log1p([75., 150., 225.]), weights=[4, 9, 16]))
+        assert result["area_radius_m"] == 500
+        expected_area = np.expm1(np.average(np.log1p([75., 150.]), weights=[4, 9]))
         assert result["area_download_mbps"] == round(expected_area, 1)
-        assert result["area_points"] == result["area_ookla_tiles"] == 3
+        assert result["area_points"] == result["area_ookla_tiles"] == 2
         assert client.get("/api/predict?lat=10.7769&lon=106.7009").status_code == 422
 
 
@@ -80,8 +80,8 @@ def test_interpolation_uses_only_nearby_observations(current_data):
 
 def test_area_excludes_distant_tiles_and_does_not_invent_observations(current_data):
     predictor = DataPredictor()
-    # Only the northern tile lies within 1.5 km of this centre.
-    result = predictor.predict_area(21.05, 105.86)
+    # Only the northern tile lies within 500 m of this centre.
+    result = predictor.predict_area(21.043, 105.86)
     assert result["area_ookla_tiles"] == 1
     assert result["area_download_mbps"] == 225
     assert predictor.predict_area(21.2, 105.9) == {}

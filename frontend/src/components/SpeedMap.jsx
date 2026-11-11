@@ -72,7 +72,7 @@ export default function SpeedMap({ towers, boundary, area, showTowers, showBound
           <span className="map-quality-label"><i style={{ backgroundColor: quality.color }} />{quality.name}</span><small>{quality.range}</small>
         </div>)}</div>
         {showBoundary && <div className="map-context-key"><span className="key-boundary" />Hanoi city boundary</div>}
-        {result && <div className="map-context-key"><span className="key-boundary" />{((result.area_radius_m ?? 1500) / 1000).toLocaleString()} km prediction radius</div>}
+        {result && <div className="map-context-key"><span className="key-boundary" />{((result.area_radius_m ?? 500) / 1000).toLocaleString()} km prediction radius</div>}
         {showTowers && <div className="map-context-key"><span className="key-tower" />{simulatedTowers ? "Simulated towers" : "Dataset cell locations"}</div>}
       </div>
       <div className="map-hint" role="status"><span className={loading ? "hint-spinner" : "hint-dot"} />{disabled ? "Waiting for the local service" : loading ? "Exploring your location…" : selected ? "Explore another location inside Hanoi" : "Hanoi only. Click inside the city boundary."}</div>
