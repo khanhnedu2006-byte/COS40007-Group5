@@ -11,6 +11,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.schemas import HealthResponse, PredictionResponse, Tower
 from speedmap import config
+from speedmap.inference.coverage import (
+    OUTSIDE_MESSAGE,
+    prediction_boundary,
+    supports_location,
+)
 from speedmap.runtime import resolve_mode
 
 logger = logging.getLogger("uvicorn.error")
@@ -97,7 +102,7 @@ def create_app(mode: str | None = None, predictor=None) -> FastAPI:
 
     @app.get("/api/boundary")
     def boundary():
-        return json.loads(config.HANOI_BOUNDARY_FILE.read_text(encoding="utf-8"))
+        return prediction_boundary()
 
     @app.get("/api/towers", response_model=list[Tower])
     def towers():
@@ -110,6 +115,8 @@ def create_app(mode: str | None = None, predictor=None) -> FastAPI:
     ):
         if not config.inside_hanoi(lat, lon):
             raise HTTPException(422, "This point is outside Hanoi. Choose a location inside the city boundary.")
+        if not supports_location(lat, lon):
+            raise HTTPException(422, OUTSIDE_MESSAGE)
         try:
             service = get_predictor()
             payload = service.predict(lat, lon)

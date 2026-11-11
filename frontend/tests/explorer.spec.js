@@ -29,7 +29,7 @@ test("coordinate entry rejects points outside the actual city boundary", async (
   page.on("request", (request) => { if (request.url().includes("/api/predict?")) predictionRequests.push(request.url()); });
   await page.getByRole("textbox", { name: "Latitude and longitude" }).fill("21.3089, 105.6049");
   await page.getByRole("button", { name: "Explore coordinates", exact: true }).click();
-  await expect(page.locator(".error-panel")).toContainText("outside Hanoi");
+  await expect(page.locator(".error-panel")).toContainText("outside central Hanoi");
   await expect(page.locator(".download-value")).toHaveCount(0);
   await expect(page.locator(".selected-tooltip")).toHaveCount(0);
   expect(predictionRequests).toHaveLength(0);
@@ -70,7 +70,7 @@ test("location access outside Hanoi does not request a prediction or leave the c
   page.on("request", (request) => { if (request.url().includes("/api/predict?")) predictionRequests.push(request.url()); });
   const tilesBefore = await page.locator(".leaflet-tile").evaluateAll((tiles) => tiles.map((tile) => tile.src).sort());
   await page.getByRole("button", { name: "Use my location", exact: true }).click();
-  await expect(page.locator(".error-panel")).toContainText("outside Hanoi");
+  await expect(page.locator(".error-panel")).toContainText("outside central Hanoi");
   const tilesAfter = await page.locator(".leaflet-tile").evaluateAll((tiles) => tiles.map((tile) => tile.src).sort());
   expect(tilesAfter).toEqual(tilesBefore);
   expect(predictionRequests).toHaveLength(0);
@@ -78,11 +78,14 @@ test("location access outside Hanoi does not request a prediction or leave the c
 
 test("zooming out stops at the Hanoi region", async ({ page }) => {
   const zoomOut = page.getByRole("button", { name: "Zoom out", exact: true });
-  await zoomOut.click();
-  await zoomOut.click();
+  const zoomIn = page.getByRole("button", { name: "Zoom in", exact: true });
+  // Fit-to-area may already select minimum zoom on a small screen.
+  await zoomIn.click();
+  for (let step = 0; step < 4 && await zoomOut.isEnabled(); step++) await zoomOut.click();
   await expect(zoomOut).toBeDisabled();
+  await zoomIn.click();
   await page.getByRole("button", { name: "Return to central Hanoi", exact: true }).click();
-  await expect(zoomOut).toBeEnabled();
+  await expect(zoomIn).toBeEnabled();
 });
 
 test("map clicks, layer toggles and project information work", async ({ page }) => {
@@ -97,7 +100,7 @@ test("map clicks, layer toggles and project information work", async ({ page }) 
   await expect(towers).toBeChecked();
   await towers.uncheck();
   await expect(towers).not.toBeChecked();
-  await page.getByRole("checkbox", { name: "Hanoi boundary", exact: true }).uncheck();
+  await page.getByRole("checkbox", { name: "Prediction area", exact: true }).uncheck();
   await page.getByRole("button", { name: "About this project", exact: true }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
   await expect(page.getByRole("dialog")).toContainText("no measured confidence coverage");

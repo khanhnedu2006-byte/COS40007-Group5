@@ -32,6 +32,7 @@ function MapActions({ navigation, mapRef, area, onZoomChange }) {
   }, [map, mapRef]);
   useEffect(() => {
     map.setMaxBounds(area?.bounds || HANOI_BOUNDS);
+    if (area) map.fitBounds(area.bounds, { padding: [24, 24], maxZoom: 13, animate: false });
   }, [map, area]);
   useEffect(() => {
     if (navigation && area?.contains(navigation.lat, navigation.lon)) {
@@ -49,7 +50,7 @@ const MapScene = memo(function MapScene({ towers, boundary, area, showTowers, sh
     tileerror: () => { if (++tileFailures.current >= 3) onTileError(true); },
     tileload: () => { tileFailures.current = 0; onTileError(false); },
   }), [onTileError]);
-  return <MapContainer center={HANOI_CENTER} zoom={12} minZoom={10} maxZoom={18}
+  return <MapContainer center={HANOI_CENTER} zoom={12} minZoom={11} maxZoom={18}
     maxBounds={HANOI_BOUNDS} maxBoundsViscosity={1} inertia={false}
     zoomAnimation={false} fadeAnimation={false} markerZoomAnimation={false}
     wheelDebounceTime={100} preferCanvas zoomControl={false} className="map">

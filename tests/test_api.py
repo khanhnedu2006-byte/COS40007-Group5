@@ -54,10 +54,44 @@ def test_invalid_coordinates_are_validation_errors(client, params):
     assert client.get("/api/predict", params=params).status_code == 422
 
 
-def test_map_receives_administrative_boundary(client):
+def test_map_receives_prediction_boundary(client):
     geo = client.get("/api/boundary").json()
     assert geo["type"] == "FeatureCollection"
     assert geo["features"][0]["geometry"]["type"] in {"Polygon", "MultiPolygon"}
+
+
+@pytest.mark.parametrize("lat,lon", [(21.12, 105.82), (20.85, 105.8), (21.03, 105.6)])
+def test_outer_hanoi_is_not_supported_for_predictions(client, lat, lon):
+    from speedmap import config
+
+    assert config.inside_hanoi(lat, lon)
+    response = client.get("/api/predict", params={"lat": lat, "lon": lon})
+    assert response.status_code == 422
+    assert "central Hanoi" in response.json()["detail"]
+
+
+def test_prediction_boundary_contains_all_location_shortcuts(client):
+    from speedmap.inference.coverage import supports_location
+
+    for lat, lon in [(21.0285, 105.8542), (21.0589, 105.8233), (21.0362, 105.7906), (20.9719, 105.7772)]:
+        assert supports_location(lat, lon)
+    ring = client.get("/api/boundary").json()["features"][0]["geometry"]["coordinates"][0]
+    # The previous fixed rectangle cut through the western and eastern clusters.
+    assert min(point[0] for point in ring) < 105.75
+    assert max(point[0] for point in ring) > 105.92
+
+
+@pytest.mark.parametrize("lat,lon", [(21.02, 105.74), (21.03, 105.92), (20.92, 105.85), (20.96, 105.825)])
+def test_supported_urban_clusters_are_included(client, lat, lon):
+    assert client.get("/api/predict", params={"lat": lat, "lon": lon}).status_code == 200
+
+
+def test_prediction_boundary_has_no_interior_holes(client):
+    geometry = client.get("/api/boundary").json()["features"][0]["geometry"]
+    assert len(geometry["coordinates"]) == 1
+    # This location previously fell in an interior gap near West Lake.
+    response = client.get("/api/predict?lat=21.05&lon=105.82")
+    assert response.status_code == 200
 
 
 def test_unavailable_model_never_falls_back_to_demo(monkeypatch):

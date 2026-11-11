@@ -14,7 +14,7 @@ export default function AboutDialog({ open, onClose }) {
       <span className="eyebrow">COS40007 · ARTIFICIAL INTELLIGENCE ENGINEERING</span>
       <h2 id="about-title">A little more signal.<br />A little less guesswork.</h2>
       <p>Hanoi Signal is a student project exploring how machine learning can estimate typical mobile internet performance across Hanoi.</p>
-      <div className="how-step"><span>01</span><div><h3>Pick a place</h3><p>Click the map, try a neighbourhood, or enter coordinates. Predictions are available inside Hanoi's administrative boundary.</p></div></div>
+      <div className="how-step"><span>01</span><div><h3>Pick a place</h3><p>Click the map, try a neighbourhood, or enter coordinates. Predictions are available inside the central Hanoi prediction area.</p></div></div>
       <div className="how-step"><span>02</span><div><h3>Understand the estimate</h3><p>Data estimates use nearby recorded Ookla tiles and their test counts. Their ranges describe nearby observed variation. The planned hybrid model combines tower-distance features, 3GPP physics and XGBoost, with an 80% conformal range. Both describe mobile internet with 4G and 5G combined.</p></div></div>
       <div className="how-step"><span>03</span><div><h3>Keep the context</h3><p>These are area estimates, not live speed tests. Actual speeds depend on your device, operator, buildings and network load. Tower locations from OpenCelliD are approximate.</p></div></div>
       <div className="dialog-note"><Icon name="info" /><p>Demo speeds and ranges are simulated. Tower locations use the local dataset when available; otherwise they are simulated too. The demo ranges are illustrative and have no measured confidence coverage.</p></div>

@@ -40,7 +40,7 @@ export default function SpeedMap({ towers, boundary, area, showTowers, showBound
   }
 
   return (
-    <section className="map-area" aria-label="Interactive map of Hanoi">
+    <section className="map-area" aria-label="Interactive map of central Hanoi">
       <MapScene towers={towers} boundary={boundary} area={area} showTowers={showTowers} showBoundary={showBoundary}
         mapStyle={mapStyle} result={result} selected={selected} navigation={navigation} onMapClick={onMapClick}
         disabled={disabled} mapRef={mapRef} onTileError={handleTileError} onZoomChange={setZoom} />
@@ -63,7 +63,7 @@ export default function SpeedMap({ towers, boundary, area, showTowers, showBound
               </label>)}
             </fieldset>
             <label><input type="checkbox" aria-label="Tower locations" checked={showTowers} onChange={onToggleTowers} /><span>{simulatedTowers ? "Demo towers" : "Cell locations"}</span><span className="layer-dot" /></label>
-            <label><input type="checkbox" checked={showBoundary} onChange={onToggleBoundary} /><span>Hanoi boundary</span><span className="layer-dash" /></label>
+            <label><input type="checkbox" checked={showBoundary} onChange={onToggleBoundary} /><span>Prediction area</span><span className="layer-dash" /></label>
           </div>}
         </div>
       </div>
@@ -72,15 +72,15 @@ export default function SpeedMap({ towers, boundary, area, showTowers, showBound
         <div className="map-quality-key">{QUALITY.map((quality) => <div key={quality.name}>
           <span className="map-quality-label"><i style={{ backgroundColor: quality.color }} />{quality.name}</span><small>{quality.range}</small>
         </div>)}</div>
-        {showBoundary && <div className="map-context-key"><span className="key-boundary" />Hanoi city boundary</div>}
+        {showBoundary && <div className="map-context-key"><span className="key-boundary" />Central Hanoi prediction area</div>}
         {result && <div className="map-context-key"><span className="key-boundary" />{formatDistance(result.area_radius_m ?? 500)} prediction radius</div>}
         {showTowers && <div className="map-context-key"><span className="key-tower" />{simulatedTowers ? "Simulated towers" : "Dataset cell locations"}</div>}
       </div>
-      <div className="map-hint" role="status"><span className={loading ? "hint-spinner" : "hint-dot"} />{disabled ? "Waiting for the local service" : loading ? "Exploring your location…" : selected ? "Explore another location inside Hanoi" : "Hanoi only. Click inside the city boundary."}</div>
+      <div className="map-hint" role="status"><span className={loading ? "hint-spinner" : "hint-dot"} />{disabled ? "Waiting for the local service" : loading ? "Exploring your location…" : selected ? "Explore another location in central Hanoi" : "Central Hanoi only. Click inside the outlined prediction area."}</div>
       <div className="map-controls">
         <span className="compass" aria-hidden="true">N<span>↑</span></span>
-        <div className="zoom-buttons"><button aria-label="Zoom in" disabled={zoom >= 18} onClick={() => mapRef.current?.zoomIn()}><Icon name="plus" /></button><button aria-label="Zoom out" disabled={zoom <= 10} onClick={() => mapRef.current?.zoomOut()}><Icon name="minus" /></button></div>
-        <button className="map-button" aria-label="Return to central Hanoi" title="Return to central Hanoi" onClick={() => mapRef.current?.setView(HANOI_CENTER, 12)}><Icon name="globe" /></button>
+        <div className="zoom-buttons"><button aria-label="Zoom in" disabled={zoom >= 18} onClick={() => mapRef.current?.zoomIn()}><Icon name="plus" /></button><button aria-label="Zoom out" disabled={zoom <= 11} onClick={() => mapRef.current?.zoomOut()}><Icon name="minus" /></button></div>
+        <button className="map-button" aria-label="Return to central Hanoi" title="Return to central Hanoi" onClick={() => area ? mapRef.current?.fitBounds(area.bounds, { padding: [24, 24], maxZoom: 13, animate: false }) : mapRef.current?.setView(HANOI_CENTER, 12)}><Icon name="globe" /></button>
         <button className={`map-button ${locating ? "locating" : ""}`} aria-label="Use my location" title="Use my location" onClick={locate} disabled={disabled || locating}><Icon name="target" /></button>
       </div>
     </section>

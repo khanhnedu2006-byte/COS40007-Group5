@@ -1,7 +1,7 @@
-// The API supplies the same administrative polygon used for backend validation.
+// The API supplies the application prediction area, separate from the training boundary.
 export const HANOI_CENTER = [21.0285, 105.8542];
-export const HANOI_BOUNDS = [[20.5461, 105.3584], [21.4048, 106.0735]];
-export const HANOI_ONLY_MESSAGE = "This point is outside Hanoi. Choose a location inside the city boundary.";
+export const HANOI_BOUNDS = [[20.90, 105.73], [21.11, 105.95]];
+export const HANOI_ONLY_MESSAGE = "This point is outside central Hanoi's prediction area. Choose a location inside the outlined area.";
 
 function insideRing(ring, lat, lon) {
   let inside = false;

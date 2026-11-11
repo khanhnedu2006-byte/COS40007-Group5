@@ -12,9 +12,15 @@ Built for **COS40007 — Artificial Intelligence Engineering** at Swinburne Univ
 
 [Double-click launch](#double-click-on-windows) · [Linux installation](#linux-installation) ? [Manual setup](#before-you-start) · [Docker](#run-with-docker) ? [Optional public testing](#optional-public-testing) · [Model integration](#connect-the-trained-model) · [Development checks](#development-checks) · [Documentation](#documentation)
 
+The supported prediction area follows the connected Hanoi urban cluster rather than a fixed rectangle. It covers approximately **238 km?**, enclosing **1,638 of the 2,398 tower locations** and **688 recorded tile centres** in the current dataset. It includes the western and eastern clusters cut off by the earlier central rectangle, while leaving out distant sparse corridors. All four location shortcuts remain supported, and interior holes are filled.
+
+The boundary generator searches the full Hanoi extent on a 250 m grid. Candidate locations require at least **16 towers within 1.5 km** and a recorded tile within **1 km**. It bridges small gaps, removes narrow extensions, retains the connected component around Ho?n Ki?m, and smooths its exterior. These are boundary-generation heuristics, not per-point accuracy guarantees. The **500 m calculation radius** remains separate and unchanged.
+
+`data/reference/prediction_area.geojson` stores the shared map/API boundary, dataset fingerprints and coverage statistics. After replacing the tower or tile dataset, rebuild with `.venv/bin/python scripts/build_prediction_area.py` on Linux or `.\.venv\Scripts\python.exe scripts/build_prediction_area.py` on Windows, review the result, and restart the backend. The full administrative boundary remains in use for dataset processing, and surrounding tower inputs are retained for predictions near the edge. Local, demo, official and optional public runs use the same restriction.
+
 ## What you can explore
 
-- **Hanoi only:** map navigation stays around the city, with predictions restricted to its administrative boundary.
+- **Central Hanoi only:** map navigation and predictions are restricted to the central urban area, excluding the sparsely covered outer districts. The 500 m calculation radius remains unchanged.
 - **Pick a place:** click the map, enter coordinates, or try Hoàn Kiếm, West Lake, Cầu Giấy and Hà Đông.
 - **Understand the result:** download speed, upload speed, latency, a speed range and a quality level.
 - **Focus on performance:** a quiet basemap and a selected location coloured by download quality. Tower markers and nearest-tower connections are optional under Layers.

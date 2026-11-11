@@ -20,6 +20,7 @@ CELLS_FILE = DATA_INTERIM / "hanoi_cells.csv"
 TRAIN_FILE = DATA_PROCESSED / "hanoi_train.csv"
 TILES_FILE = DATA_PROCESSED / "hanoi_tiles.csv"
 HANOI_BOUNDARY_FILE = ROOT / "data" / "reference" / "hanoi_boundary.geojson"
+PREDICTION_BOUNDARY_FILE = ROOT / "data" / "reference" / "prediction_area.geojson"
 CONTEXT_GRID_FILE = ROOT / "data" / "reference" / "hanoi_context_grid.npz"
 CONTEXT_GRID_RES_DEG = 0.001  # ~110 m x 104 m
 

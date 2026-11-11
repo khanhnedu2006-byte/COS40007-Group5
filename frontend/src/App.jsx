@@ -113,7 +113,7 @@ export default function App() {
           <span className="brand-mark"><Icon name="signal" size={23} /></span>
           <span>hanoi<span className="brand-light">signal</span><span className="brand-dot">.</span></span>
         </a>
-        <nav className="header-center" aria-label="Main navigation"><a href="#/" className={!aboutOpen ? "active-nav" : undefined} aria-current={!aboutOpen ? "page" : undefined}>Signal explorer</a><span className="header-divider" /><span>Hanoi, Vietnam</span></nav>
+        <nav className="header-center" aria-label="Main navigation"><a href="#/" className={!aboutOpen ? "active-nav" : undefined} aria-current={!aboutOpen ? "page" : undefined}>Signal explorer</a><span className="header-divider" /><span>Central Hanoi, Vietnam</span></nav>
         <div className="header-actions">
           <span className={`service-badge ${health?.ready ? "connected" : ""}`}><span className="status-dot" />{connecting ? "Connecting" : health?.ready ? demo ? "Demo mode" : dataMode ? "Data estimates" : "Model connected" : "Service offline"}</span>
           <button className="about-button" aria-label="About this project" onClick={() => setAboutOpen(true)}><Icon name="info" size={17} /><span>About this project</span></button>
