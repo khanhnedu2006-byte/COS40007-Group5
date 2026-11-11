@@ -10,7 +10,7 @@ Built for **COS40007 — Artificial Intelligence Engineering** at Swinburne Univ
 
 **Windows quick launch:** double-click **[demo.bat](demo.bat)** for simulated predictions or **[start.bat](start.bat)** for the current Hanoi data and, when available, the saved hybrid model. Install Python and Node.js first; the launchers handle project dependencies and open the browser.
 
-[Double-click launch](#double-click-on-windows) · [Linux installation](#linux-installation) ? [Manual setup](#before-you-start) · [Docker](#run-with-docker) · [Model integration](#connect-the-trained-model) · [Development checks](#development-checks) · [Documentation](#documentation)
+[Double-click launch](#double-click-on-windows) · [Linux installation](#linux-installation) ? [Manual setup](#before-you-start) · [Docker](#run-with-docker) ? [Optional public testing](#optional-public-testing) · [Model integration](#connect-the-trained-model) · [Development checks](#development-checks) · [Documentation](#documentation)
 
 ## What you can explore
 
@@ -266,6 +266,25 @@ Stop an existing backend on port `8000` before starting Compose; both setups use
 ```sh
 docker compose down
 ```
+
+## Optional public testing
+
+Local operation remains the default, including `start.bat` and `python3 scripts/launch.py actual`. For an optional public HTTPS test, the Docker stack now includes an `online` profile using a Cloudflare Quick Tunnel. No account or domain is required; the temporary address is printed in the tunnel logs.
+
+```sh
+# Explicitly start public testing (requires Docker and the normal data files)
+docker compose --profile online up -d --build
+docker compose logs -f public-tunnel
+```
+
+Open the printed `https://?trycloudflare.com` address on another network. The official frontend and API, including the 1.5 km radius, are served together. The host must remain running; this is temporary public testing rather than permanent hosting.
+
+```sh
+# End public access while keeping the local Docker site running
+docker compose --profile online stop public-tunnel
+```
+
+Continue locally at **http://127.0.0.1:8080**. See the **[public testing guide](docs/public-testing.md)** for prerequisites, local-first verification, demo mode, shutdown and troubleshooting. Ordinary startup does not enable the public profile.
 
 ## How it fits together
 

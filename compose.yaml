@@ -34,3 +34,13 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+
+  # Opt in explicitly with --profile online. Normal startup stays on loopback.
+  public-tunnel:
+    image: cloudflare/cloudflared:latest
+    profiles: [online]
+    command: ["tunnel", "--no-autoupdate", "--url", "http://frontend:80"]
+    depends_on:
+      frontend:
+        condition: service_healthy
+    restart: "no"
