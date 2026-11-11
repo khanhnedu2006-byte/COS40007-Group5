@@ -31,8 +31,14 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Install shared package
+        run: pip install -e . --no-deps
+
+      - name: Verify dataset snapshot provenance
+        run: python model.py --data-file data/ci/hanoi_train.csv --check-data
+
       - name: Train model
-        run: python model.py
+        run: python model.py --data-file data/ci/hanoi_train.csv
 
       - name: Upload results
         uses: actions/upload-artifact@v4
@@ -41,3 +47,4 @@ jobs:
           path: |
             model_results.png
             metrics.txt
+            data/ci/hanoi_train.manifest.json

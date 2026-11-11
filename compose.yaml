@@ -4,7 +4,13 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     environment:
-      SPEEDMAP_MODE: demo
+      SPEEDMAP_MODE: ${SPEEDMAP_MODE:-actual}
+      SPEEDMAP_MODEL_NAME: ${SPEEDMAP_MODEL_NAME:-hybrid}
+      SPEEDMAP_MODEL_RUN: ${SPEEDMAP_MODEL_RUN:-}
+    volumes:
+      - ./data/interim:/app/data/interim:ro
+      - ./data/processed:/app/data/processed:ro
+      - ./artifacts/models:/app/artifacts/models:ro
     ports:
       - "127.0.0.1:8000:8000"
     healthcheck:

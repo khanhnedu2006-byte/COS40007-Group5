@@ -8,13 +8,14 @@ import pandas as pd
 
 from speedmap import config
 from speedmap.artifacts import load_model
-from speedmap.data.towers import load_cells, load_towers
+from speedmap.data.towers import load_cells
 from speedmap.features.point_features import PointFeaturizer
 from speedmap.inference.area import AreaSampler, area_estimate
 
 
 def load_tiles() -> pd.DataFrame:
     return pd.read_csv(config.TILES_FILE, dtype={"quadkey": str})
+from speedmap.data.catalog import load_tower_table, verify_fingerprints
 
 
 class Predictor:
@@ -28,18 +29,13 @@ class Predictor:
         self.columns = self.metadata.get("feature_columns", list(config.FEATURE_COLUMNS))
         if self.columns != list(config.FEATURE_COLUMNS):
             raise ValueError("Saved model feature columns differ from the shared feature contract.")
-        self.towers = load_towers()
-        required_towers = {"tower_id", "latitude", "longitude"}
-        if self.towers.empty or not required_towers.issubset(self.towers.columns):
-            raise ValueError("Tower table is empty or missing required columns.")
-        if not np.isfinite(self.towers[["latitude", "longitude"]].to_numpy()).all():
-            raise ValueError("Tower coordinates must be finite.")
-        if "source" not in self.towers:
-            self.towers = self.towers.assign(source="estimated")
+        verify_fingerprints(self.metadata.get("data_fingerprints"))
+        self.towers = load_tower_table()
         tiles = load_tiles()
         self.featurizer = PointFeaturizer(self.towers, load_cells(), tiles)
         self.area_sampler = AreaSampler(tiles)
         self.index = self.featurizer.tower_index
+        self.data_fingerprints = self.metadata["data_fingerprints"]
         self.version = str(self.metadata["run_id"])
         self.predict(*config.HANOI_CENTER)
 

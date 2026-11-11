@@ -1,7 +1,7 @@
 import Icon from "./Icon.jsx";
 import ResultPanel from "./ResultPanel.jsx";
 
-export default function Sidebar({ towerCount, result, error, loading, selected, places, onSelect, disabled, demo, onRetry }) {
+export default function Sidebar({ towerCount, result, error, loading, selected, places, onSelect, disabled, simulatedTowers, onRetry }) {
   return (
     <aside className="sidebar">
       <div className="sidebar-intro">
@@ -25,7 +25,7 @@ export default function Sidebar({ towerCount, result, error, loading, selected, 
         </div>
       </section>
       <footer className="sidebar-footer">
-        <div><span className="footer-icon"><Icon name="tower" size={16} /></span><span><strong>{towerCount.toLocaleString()} {demo ? "demo towers" : "cell locations"}</strong><small>4G + 5G, one connected picture</small></span></div>
+        <div><span className="footer-icon"><Icon name="tower" size={16} /></span><span><strong>{towerCount.toLocaleString()} {simulatedTowers ? "demo towers" : "cell locations"}</strong><small>{simulatedTowers ? "Simulated locations for interface development" : "Local tower dataset · 4G + 5G"}</small></span></div>
         <p>A student-built view of Hanoi.<br />Made with curiosity, shared with context.</p>
         <span className="footer-course">SWINBURNE · COS40007</span>
       </footer>

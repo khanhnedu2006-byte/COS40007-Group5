@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "source": "data/processed/hanoi_train.csv",
+  "sha256": "1889866487580483339b76378a7b8e998dc2cbd9f4bc32f994a903d0e72103f9",
+  "rows": 24679,
+  "first_quarter": "2024-4",
+  "last_quarter": "2026-3",
+  "data_fingerprints": {
+    "towers": "0bbeb8b54a26514101f7c667df4a652b5d10e0212613c4f83a72b2d24bfa54d1",
+    "training": "1889866487580483339b76378a7b8e998dc2cbd9f4bc32f994a903d0e72103f9",
+    "tiles": "f7e3c506186964f9d7ff57a56e9c8cd06dda9b216ebb13a7d120fc90610894d7",
+    "boundary": "738305f72192a0baa20823a6fe1aae853d0fa756b85b52b77c45f0e5be0bbd21"
+  }
+}

@@ -25,7 +25,7 @@ const SelectedPoint = memo(function SelectedPoint({ result, selected, showTowers
     <CircleMarker center={point} radius={9}
       pathOptions={{ color: "#fff", weight: 3, fillColor: color, fillOpacity: 1 }}>
       <Tooltip direction="top" offset={[0, -10]} permanent className="selected-tooltip">
-        {result ? <div className="map-signal-reading" style={{ color }}><strong>{result.download_mbps.toFixed(1)} <small>Mbps</small></strong><span>{result.quality_level} connection · {result.source === "demo" ? "simulated" : "estimate"}</span></div> : selected.name}
+        {result ? <div className="map-signal-reading" style={{ color }}><strong>{result.download_mbps.toFixed(1)} <small>Mbps</small></strong><span>{result.quality_level} connection · {result.source === "demo" ? "simulated" : result.source === "data" ? "data estimate" : "model estimate"}</span></div> : selected.name}
       </Tooltip>
     </CircleMarker>
   </>;

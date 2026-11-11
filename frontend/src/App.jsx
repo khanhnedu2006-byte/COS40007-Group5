@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import SpeedMap from "./components/SpeedMap.jsx";
 import Sidebar from "./components/Sidebar.jsx";
 import Icon from "./components/Icon.jsx";
-import AboutDialog from "./components/AboutDialog.jsx";
+import AboutPage from "./components/AboutPage.jsx";
 import { fetchBoundary, fetchHealth, fetchPrediction, fetchTowers } from "./api.js";
 import { createHanoiArea, HANOI_ONLY_MESSAGE } from "./hanoi.js";
 
@@ -27,7 +27,12 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [connecting, setConnecting] = useState(true);
   const [reload, setReload] = useState(0);
-  const [aboutOpen, setAboutOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(() => window.location.hash === "#/about");
+  useEffect(() => {
+    const syncPage = () => setAboutOpen(window.location.hash === "#/about");
+    window.addEventListener("hashchange", syncPage);
+    return () => window.removeEventListener("hashchange", syncPage);
+  }, []);
   const predictionRequest = useRef(null);
   const requestNumber = useRef(0);
   const area = useMemo(() => boundary ? createHanoiArea(boundary) : null, [boundary]);
@@ -97,42 +102,43 @@ export default function App() {
     setReload((value) => value + 1);
   };
   const demo = health?.mode === "demo";
+  const dataMode = health?.mode === "data";
+  const simulatedTowers = health?.tower_data_source === "simulated";
 
   return (
     <div className="app-shell">
-      <a className="skip-link" href="#explorer">Skip to location explorer</a>
+      <a className="skip-link" href={aboutOpen ? "#about-content" : "#explorer"}>Skip to main content</a>
       <header className="app-header">
-        <a href="./" className="brand" aria-label="Hanoi Signal home">
+        <a href="#/" className="brand" aria-label="Hanoi Signal home">
           <span className="brand-mark"><Icon name="signal" size={23} /></span>
           <span>hanoi<span className="brand-light">signal</span><span className="brand-dot">.</span></span>
         </a>
-        <div className="header-center"><span className="active-nav">Signal explorer</span><span className="header-divider" /><span>Hanoi, Vietnam</span></div>
+        <nav className="header-center" aria-label="Main navigation"><a href="#/" className={!aboutOpen ? "active-nav" : undefined} aria-current={!aboutOpen ? "page" : undefined}>Signal explorer</a><span className="header-divider" /><span>Hanoi, Vietnam</span></nav>
         <div className="header-actions">
-          <span className={`service-badge ${health?.ready ? "connected" : ""}`}><span className="status-dot" />{connecting ? "Connecting" : health?.ready ? demo ? "Demo mode" : "Model connected" : "Service offline"}</span>
+          <span className={`service-badge ${health?.ready ? "connected" : ""}`}><span className="status-dot" />{connecting ? "Connecting" : health?.ready ? demo ? "Demo mode" : dataMode ? "Data estimates" : "Model connected" : "Service offline"}</span>
           <button className="about-button" aria-label="About this project" onClick={() => setAboutOpen(true)}><Icon name="info" size={17} /><span>About this project</span></button>
         </div>
       </header>
-      <div className={`mode-banner ${connectionError ? "has-error" : ""}`} role="status">
+      {!aboutOpen && <div className={`mode-banner ${connectionError ? "has-error" : ""}`} role="status">
         <Icon name={connectionError ? "info" : "globe"} size={15} />
-        <span>{connectionError || (connecting ? "Connecting to your local signal explorer…" : demo ? "You're exploring a demo. Speeds, ranges and tower locations are simulated while our model is in development." : "Area estimates for mobile internet, combining 4G and 5G. These are predictions, not live speed tests.")}</span>
+        <span>{connectionError || (connecting ? "Connecting to your local signal explorer…" : demo ? simulatedTowers ? "You're exploring a demo. Speeds, ranges and tower locations are simulated while our model is in development." : "Demo mode uses your local tower dataset. Speeds and ranges are simulated while our model is in development." : dataMode ? `Using ${health.observation_count?.toLocaleString()} recorded Hanoi tiles through ${health.data_period}. Spatial estimates reflect historical Ookla tests, not live measurements.` : "Area estimates for mobile internet, combining 4G and 5G. These are predictions, not live speed tests.")}</span>
         {connectionError && <button onClick={retry}><Icon name="refresh" size={14} />Reconnect</button>}
         {!connectionError && <span className="banner-project">COS40007 DESIGN PROJECT</span>}
-      </div>
-      <main className="layout" id="explorer">
+      </div>}
+      {aboutOpen ? <AboutPage /> : <main className="layout" id="explorer">
         <Sidebar
           towerCount={towers.length} result={result} error={error} loading={loading}
           selected={selected} places={PLACES} onSelect={selectPoint}
-          disabled={connecting || !health?.ready || !area} demo={demo}
+          disabled={connecting || !health?.ready || !area} simulatedTowers={simulatedTowers}
           onRetry={selected && !selected.outside ? () => selectPoint(selected.lat, selected.lon, selected.name) : undefined}
         />
         <SpeedMap
           towers={towers} boundary={boundary} area={area} showTowers={showTowers} showBoundary={showBoundary}
           onToggleTowers={toggleTowers} onToggleBoundary={toggleBoundary}
           result={result} selected={selected} navigation={navigation} loading={loading}
-          onMapClick={selectPoint} disabled={connecting || !health?.ready || !area} demo={demo}
+          onMapClick={selectPoint} disabled={connecting || !health?.ready || !area} simulatedTowers={simulatedTowers}
         />
-      </main>
-      <AboutDialog open={aboutOpen} onClose={() => setAboutOpen(false)} />
+      </main>}
     </div>
   );
 }
