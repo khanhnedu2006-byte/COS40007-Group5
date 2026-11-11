@@ -37,7 +37,7 @@ def run_context():
     print(f"{len(layers)} layers {sorted(layers)} -> {config.CONTEXT_GRID_FILE}")
 
 
-def run_features():
+def run_features(*, include_physics: bool = False):
     from speedmap.data import ookla, towers
     from speedmap.features.build import build_tile_table, build_training_table, pool_tiles
 
@@ -46,10 +46,12 @@ def run_features():
     clean.to_csv(config.OOKLA_CLEAN_FILE, index=False)
     hanoi_towers, cells = towers.load_towers(), towers.load_cells()
     config.TILES_FILE.parent.mkdir(parents=True, exist_ok=True)
-    tiles = build_tile_table(clean, hanoi_towers, cells)
+    if not include_physics:
+        print("Physics skipped for baselines; theory_mbps is intentionally empty.")
+    tiles = build_tile_table(clean, hanoi_towers, cells, include_physics=include_physics)
     tiles.to_csv(config.TILES_FILE, index=False)
     print(f"{len(tiles):,} tiles -> {config.TILES_FILE}")
-    train = build_training_table(clean, hanoi_towers, cells, pool_tiles(clean))
+    train = build_training_table(clean, hanoi_towers, cells, pool_tiles(clean), include_physics=include_physics)
     train.to_csv(config.TRAIN_FILE, index=False)
     print(f"{len(train):,} rows -> {config.TRAIN_FILE}")
     from speedmap.data.catalog import sync_ci_snapshot
@@ -59,8 +61,9 @@ def run_features():
 
 
 def run_baselines():
-    # TODO: giống notebook 05
-    raise NotImplementedError
+    from speedmap.training import train_baselines
+
+    train_baselines()
 
 
 def run_hybrid():
@@ -74,11 +77,16 @@ STEPS = {"towers": run_towers, "context": run_context, "features": run_features,
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--step", default="all", choices=[*STEPS, "all"])
+    parser.add_argument("--include-physics", action="store_true",
+                        help="Attempt the theory feature during --step features (unfinished physics warns).")
     args = parser.parse_args()
     for name, step in STEPS.items():
         if args.step in (name, "all"):
             print(f"== {name}")
-            step()
+            if name == "features":
+                step(include_physics=args.include_physics)
+            else:
+                step()
 
 
 if __name__ == "__main__":

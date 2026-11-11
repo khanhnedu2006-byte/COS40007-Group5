@@ -1,67 +1,69 @@
-# API Contract
+# Regional API Contract (v0.3)
 
-Produced by Person 3 (backend), using the bundle saved by Person 2 (notebook 06).
+The app estimates typical download speed in a 1.5 km circle around an input coordinate. It combines mobile networks/operators and is not a live speed test. This replaces the previous point-level prediction response; clients must use the `area_*` fields.
 
 ## GET /api/health
+
 ```json
-{"status": "ok", "ready": true, "mode": "demo", "model_loaded": false,
- "model_version": "demo-v1", "tower_count": 2398, "tower_data_source": "dataset"}
+{"status":"ok","ready":true,"mode":"model","model_loaded":true,
+ "model_version":"20261111-133102","tower_count":2398}
 ```
 
-`ready` means predictions can be served. `model_loaded` is false in data and demo modes. `mode` is `data`, `demo` or `model` after resolving the `actual` startup setting. Data mode also returns `observation_count`, `data_period` and `data_fingerprints` (canonical SHA-256 hashes).
-`tower_count` depends on the loaded file. `tower_data_source` distinguishes `"dataset"` locations from the `"simulated"` fallback, independently of prediction mode; it is `null` when the service is unavailable.
-Model startup failures return `status: "unavailable"`, `ready: false` and prediction/tower endpoints return 503. Model mode never falls back to simulated data.
+`mode` is `demo`, `data`, or `model`. Default `actual` resolves to `model` when a regional run is registered, otherwise `data`. Health also reports `tower_data_source`, available observation count/period and canonical data fingerprints. Demo can be ready with `model_loaded: false`. Failed model initialization returns `status: "unavailable"`, `ready: false`, and prediction/tower endpoints return 503. Model mode never falls back to demo.
 
 ## GET /api/boundary
-Returns the Hanoi administrative boundary as a GeoJSON FeatureCollection, using the same local file as coordinate validation.
+
+Returns Hanoi's administrative boundary as a GeoJSON FeatureCollection, using the same local polygon as coordinate validation.
 
 ## GET /api/towers
-```json
-[{"tower_id": 1, "latitude": 21.0285, "longitude": 105.8542}, ...]
-```
+
+Returns tower objects containing `tower_id` (integer or string), `latitude`, `longitude`, and `source`. OpenCelliD positions are estimated cell locations, not official tower sites. Demo tower sources are `simulated`.
 
 ## GET /api/predict?lat=21.0285&lon=105.8542
+
+Example from the saved KNN regional run:
+
 ```json
 {
-  "latitude": 21.0285, "longitude": 105.8542,
-  "download_mbps": 133.0, "download_low": 95.0, "download_high": 170.0,
-  "upload_mbps": 31.0, "latency_ms": 18.0,
-  "quality_level": "Good",
-  "theory_mbps": 223.0, "local_effect_mbps": -90.0,
+  "latitude": 21.0285,
+  "longitude": 105.8542,
+  "area_radius_m": 1500,
+  "area_download_mbps": 164.3,
+  "area_quality_level": "Good",
+  "area_points": 20,
+  "area_ookla_tiles": 20,
+  "area_grid_points": 0,
   "nearest_towers": [
-    {"tower_id": 1, "latitude": 21.03, "longitude": 105.85, "distance_m": 400, "source": "opencellid"}
+    {"tower_id":1545,"latitude":21.029,"longitude":105.854,"distance_m":59,"source":"opencellid"},
+    {"tower_id":1519,"latitude":21.027967,"longitude":105.853767,"distance_m":74,"source":"opencellid"},
+    {"tower_id":1520,"latitude":21.0277,"longitude":105.8546,"distance_m":98,"source":"opencellid"}
   ],
-  "source": "model", "model_version": "20261020-101500",
-  "interval_kind": "conformal", "confidence_level": 0.8
+  "source": "model",
+  "model_name": "knn",
+  "model_version": "20261111-133102"
 }
 ```
-Errors: `422` if the point is outside Hanoi; `503` when the selected prediction service is unavailable.
 
-Missing, malformed, non-finite and out-of-range coordinates also return 422 using FastAPI's standard validation response. Prediction errors use a string `detail`. Coordinates inside the old bounding box but outside the administrative polygon are rejected.
+- `area_download_mbps`: non-negative regional download estimate, rounded to one decimal. `area_quality_level` uses the same displayed value: Poor <15, Fair <100, Good <200, otherwise Excellent.
+- `area_radius_m`: radius in metres, currently 1500; the map draws this circle.
+- `area_points = area_ookla_tiles + area_grid_points`. Model mode samples measured tile centres in the circle, weighted by their test counts. Those counts define sampling support; the output pools model predictions rather than measured speeds.
+- In model mode, with fewer than five measured tiles, add grid points spaced 300 m apart with unit weight, including when there are no measured tiles. Positive `area_grid_points` identifies sparse support. The full circle is sampled even when it crosses the city boundary; only its input centre must be inside Hanoi.
+- `nearest_towers`: one to three locations ordered by distance from the input centre, in metres.
+- `source`: `model`, `data`, or `demo`. Recorded-data mode uses `recorded` as its model name. Model names are `knn` or `random_forest`; demo uses `simulated`, version `demo-regional-v1`, simulated grid speeds, zero measured tiles, and explicit UI labels. Demo uses local tower locations when available, otherwise simulated towers; tower provenance is independent of simulated speed provenance.
 
-In demo mode, prediction `source` is `"demo"`, `interval_kind` is `"illustrative"`, and `confidence_level` is `null`. When `data/interim/hanoi_towers.csv` exists, tower IDs, coordinates and sources (such as `"opencellid"` or `"osm"`) come from the dataset, and distances are computed from those positions. When the file is absent, tower IDs are strings such as `"DEMO-001"` with `source: "simulated"`. Tower IDs may be integers or strings in either mode. Tower provenance does not change the simulated nature of demo speeds and ranges.
+Regional model/demo responses leave optional legacy point fields null. Recorded-data responses retain download/upload/latency, neighbour spread, and `data_support` fields for existing data clients. The UI presents the regional average where measured tiles exist; an empty recorded region is unavailable rather than filled with invented observations. Point-level neighbour spread is not a regional confidence interval.
 
-## Saved model bundle (`artifacts/models/hybrid/<run>/model.joblib`)
+Missing, malformed, non-finite, out-of-range or outside-polygon coordinates return 422. Prediction errors and unavailable models return 503 with a public string `detail`; internal errors are logged. Coordinates inside the bounding box but outside the polygon are rejected.
+
+## Saved regional bundle
+
+Location: `artifacts/models/regional/<run>/model.joblib` with adjacent `metadata.json` and parent `LATEST`.
+
 ```python
-{"model": HybridModel, "conformal": ConformalInterval,
- "secondary": {"upload_mbps": XGBRegressor, "latency_ms": XGBRegressor}}
+{"kind": "regional_baseline", "model": fitted_baseline,
+ "model_name": "knn", "area_radius_m": 1500}
 ```
 
-The inference adapter calls `model.predict(features)`, `conformal.interval(predictions)` (a `(low, high)` pair), and each secondary estimator's `predict(features)`. Features use exactly `config.FEATURE_COLUMNS`, built by `PointFeaturizer` from hanoi_towers.csv, hanoi_cells.csv, hanoi_tiles.csv and the context grid (no `quarter_index`; the model is retrained each quarter instead). Context features may be NaN; all other features must be finite. All outputs must be finite and non-negative, with the download estimate inside its interval. Shared physics must be implemented before model mode can become ready.
+The estimator exposes `predict(features)` in Mbps. Metadata stores the ordered feature columns, settings, out-of-fold metrics, training period, input fingerprints, and scikit-learn version. KNN uses latitude/longitude; Random Forest uses `config.FEATURE_COLUMNS` except `theory_mbps`, with its fitted context imputer saved inside the model. The adapter rejects legacy hybrid/point bundles; train with `scripts/train_baselines.py`.
 
-## Area estimate (1.5 km radius) — decided 9 Nov 2026
-`Predictor.predict_area(lat, lon)` returns the typical download speed of the area around the click:
-```json
-{"area_radius_m": 1500, "area_download_mbps": 118.4, "area_quality_level": "Good",
- "area_points": 41, "area_ookla_tiles": 41}
-```
-Points = Ookla tiles within 1.5 km weighted by tests (grid points every 300 m are added where there are fewer than 5 tiles).
-Spatial CV: 77.8% correct quality level for 1.5 km areas (single tiles: 62–71%). The UI should draw the 1.5 km circle and
-word the result as "the area around this point", not as the exact speed at the point.
-## Recorded-data estimates
-
-Default startup uses `data` when no model is registered. It reads `data/processed/hanoi_tiles.csv` and the same canonical tower file as model/demo modes. Prediction `source` is `data`, `interval_kind` is `neighbour_spread`, and `confidence_level`, `theory_mbps` and `local_effect_mbps` are null. The range is nearby observed minimum/maximum download, not a prediction confidence interval.
-
-`data_support` contains `tiles_used`, `tests` (sum of tests across selected neighbours), `nearest_tile_distance_m` and `latest_quarter`. Up to five neighbours are used. A recorded centre preserves its measurements exactly; other points use distance/test-count weighted spatial estimates. Version includes the tile-file hash.
-
-`metadata.json` written by `save_model` includes `data_fingerprints` for available canonical towers, training, tiles and boundary inputs. Model inference requires tower provenance and verifies every recorded fingerprint against current files. Changed or missing files and unversioned models fail readiness with guidance to supply a matching retrained bundle. Only save an artifact after fitting on the recorded inputs.
+See [training.md](training.md) for evaluation and [data_contract.md](data_contract.md) for matching inputs. Keep saved models and processed data from the same run together; canonical data fingerprints are checked at startup. Older regional runs with equivalent input hashes in `provenance.input_sha256` are verified through those hashes; unversioned or mismatched inputs are rejected.

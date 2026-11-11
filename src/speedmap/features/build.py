@@ -68,32 +68,33 @@ def _features_for_tiles(points: pd.DataFrame, featurizer: PointFeaturizer) -> pd
     return feats
 
 
-def build_tile_table(ookla_clean: pd.DataFrame, towers: pd.DataFrame, cells: pd.DataFrame) -> pd.DataFrame:
+def build_tile_table(ookla_clean: pd.DataFrame, towers: pd.DataFrame, cells: pd.DataFrame,
+                     *, include_physics: bool = True) -> pd.DataFrame:
     """hanoi_tiles.csv: pooled tiles + all features. The pooled tiles are also the activity source."""
     tiles = pool_tiles(ookla_clean)
-    featurizer = PointFeaturizer(towers, cells, tiles)
+    featurizer = PointFeaturizer(towers, cells, tiles, include_physics=include_physics)
     df = tiles.merge(_features_for_tiles(tiles, featurizer), on="quadkey", how="left")
     df = _add_labels(df)
     cols = TILE_INFO + [c for c in config.FEATURE_COLUMNS if c not in ("latitude", "longitude")] + LABELS
-    validate_training_table(df)
+    validate_training_table(df, include_physics=include_physics)
     return df[cols].reset_index(drop=True)
 
 
 def build_training_table(ookla_clean: pd.DataFrame, towers: pd.DataFrame, cells: pd.DataFrame,
-                         tiles: pd.DataFrame) -> pd.DataFrame:
+                         tiles: pd.DataFrame, *, include_physics: bool = True) -> pd.DataFrame:
     """hanoi_train.csv: one row per tile and quarter, same features (activity from the pooled tiles)."""
-    featurizer = PointFeaturizer(towers, cells, tiles)
+    featurizer = PointFeaturizer(towers, cells, tiles, include_physics=include_physics)
     points = ookla_clean.drop_duplicates("quadkey")[["quadkey", "latitude", "longitude"]].copy()
     points["quadkey"] = points["quadkey"].astype(str)
     df = ookla_clean.assign(quadkey=ookla_clean["quadkey"].astype(str)).merge(
         _features_for_tiles(points, featurizer), on="quadkey", how="left")
     df = _add_labels(df)
     cols = TRAIN_INFO + [c for c in config.FEATURE_COLUMNS if c not in ("latitude", "longitude")] + LABELS
-    validate_training_table(df)
+    validate_training_table(df, include_physics=include_physics)
     return df[cols].sort_values(["quarter_index", "quadkey"]).reset_index(drop=True)
 
 
-def validate_training_table(df: pd.DataFrame) -> None:
+def validate_training_table(df: pd.DataFrame, *, include_physics: bool = True) -> None:
     """Raise an error if required columns are missing or contain invalid values."""
     required = config.FEATURE_COLUMNS + [config.TARGET_COLUMN, config.WEIGHT_COLUMN, config.GROUP_COLUMN, "tests"]
     missing = [c for c in required if c not in df.columns]
@@ -105,5 +106,5 @@ def validate_training_table(df: pd.DataFrame) -> None:
         raise ValueError(f"Missing values in: {bad}")
     if (df[config.TARGET_COLUMN] <= 0).any():
         raise ValueError("download_mbps must be positive")
-    if df["theory_mbps"].isna().any():
+    if include_physics and df["theory_mbps"].isna().any():
         warnings.warn("theory_mbps is empty: rebuild the table after the physics module is finished")

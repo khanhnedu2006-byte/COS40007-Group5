@@ -10,7 +10,7 @@ from speedmap.models.baselines import RandomForestBaseline
 
 def _training_rows() -> pd.DataFrame:
     """Return a small complete feature table for model tests."""
-    return pd.DataFrame(
+    rows = pd.DataFrame(
         {
             "latitude": [21.00, 21.01, 21.02, 21.03],
             "longitude": [105.80, 105.81, 105.82, 105.83],
@@ -21,6 +21,10 @@ def _training_rows() -> pd.DataFrame:
             "quarter_index": [8099, 8099, 8100, 8100],
         }
     )
+    for column in config.FEATURE_COLUMNS:
+        if column not in rows:
+            rows[column] = np.nan if column in config.CONTEXT_FEATURES else 1.0
+    return rows
 
 
 def test_random_forest_excludes_theory_and_predicts() -> None:
@@ -50,3 +54,13 @@ def test_random_forest_rejects_missing_used_feature() -> None:
     rows.loc[0, "towers_1km"] = np.nan
     with pytest.raises(ValueError, match="finite and non-missing"):
         RandomForestBaseline(n_estimators=2).fit(rows, np.ones(4))
+
+
+def test_context_imputation_is_fitted_only_on_training_rows():
+    rows = _training_rows()
+    rows["population_500m"] = [1, 3, np.nan, np.nan]
+    model = RandomForestBaseline(n_estimators=2).fit(rows, np.arange(4))
+    column = model.columns.index("population_500m")
+    assert model.imputer.statistics_[column] == 2
+    assert np.isfinite(model.predict(rows.assign(population_500m=10000))).all()
+    assert model.imputer.statistics_[column] == 2

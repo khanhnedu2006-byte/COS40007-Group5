@@ -121,7 +121,7 @@ export default function App() {
       </header>
       {!aboutOpen && <div className={`mode-banner ${connectionError ? "has-error" : ""}`} role="status">
         <Icon name={connectionError ? "info" : "globe"} size={15} />
-        <span>{connectionError || (connecting ? "Connecting to your local signal explorer…" : demo ? simulatedTowers ? "You're exploring a demo. Speeds, ranges and tower locations are simulated while our model is in development." : "Demo mode uses your local tower dataset. Speeds and ranges are simulated while our model is in development." : dataMode ? `Using ${health.observation_count?.toLocaleString()} recorded Hanoi tiles through ${health.data_period}. Spatial estimates reflect historical Ookla tests, not live measurements.` : "Area estimates for mobile internet, combining 4G and 5G. These are predictions, not live speed tests.")}</span>
+        <span>{connectionError || (connecting ? "Connecting to your local signal explorer…" : demo ? simulatedTowers ? "You're exploring a demo. Regional speeds and tower locations are simulated." : "Demo mode uses your local tower dataset. Regional speeds are simulated." : dataMode ? `Using ${health.observation_count?.toLocaleString()} recorded Hanoi tiles through ${health.data_period}. Spatial estimates reflect historical Ookla tests, not live measurements.` : "Area estimates for mobile internet, combining 4G and 5G. These are predictions, not live speed tests.")}</span>
         {connectionError && <button onClick={retry}><Icon name="refresh" size={14} />Reconnect</button>}
         {!connectionError && <span className="banner-project">COS40007 DESIGN PROJECT</span>}
       </div>}

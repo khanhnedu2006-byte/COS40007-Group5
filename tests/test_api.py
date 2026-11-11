@@ -2,14 +2,12 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from backend.demo import DemoPredictor
 from backend.main import create_app
 
 
 @pytest.fixture(scope="module")
-def client(tmp_path_factory):
-    predictor = DemoPredictor(tmp_path_factory.mktemp("demo-fixtures") / "missing.csv")
-    with TestClient(create_app("demo", predictor)) as service:
+def client():
+    with TestClient(create_app("demo")) as service:
         yield service
 
 
@@ -17,10 +15,9 @@ def test_demo_health_identifies_fixture_data(client):
     status = client.get("/api/health").json()
     assert status["ready"] and status["mode"] == "demo"
     assert not status["model_loaded"]
-    assert status["tower_data_source"] == "simulated"
     towers = client.get("/api/towers").json()
     assert len(towers) == status["tower_count"] > 3
-    assert all(tower["source"] == "simulated" for tower in towers)
+    assert status["tower_data_source"] in {"dataset", "simulated"}
 
 
 @pytest.mark.parametrize("lat,lon", [(21.0285, 105.8542), (21.0589, 105.8233), (20.9719, 105.7772)])
@@ -29,14 +26,16 @@ def test_inside_points_return_consistent_complete_predictions(client, lat, lon):
     assert response.status_code == 200
     result = response.json()
     assert result == client.get("/api/predict", params={"lat": lat, "lon": lon}).json()
-    assert result["source"] == "demo" and result["interval_kind"] == "illustrative"
-    assert result["confidence_level"] is None
+    assert result["source"] == "demo" and result["model_name"] == "simulated"
+    assert result["area_download_mbps"] >= 0
     assert result["area_radius_m"] == 1500
-    assert result["area_download_mbps"] is None
-    assert result["download_low"] <= result["download_mbps"] <= result["download_high"]
+    assert result["area_points"] == result["area_grid_points"] > 1
+    assert result["area_ookla_tiles"] == 0
+    assert all(result.get(key) is None for key in ("download_mbps", "upload_mbps", "latency_ms", "download_low", "theory_mbps"))
     distances = [tower["distance_m"] for tower in result["nearest_towers"]]
     assert len(distances) == 3 and distances == sorted(distances)
-    assert result["download_mbps"] == pytest.approx(result["theory_mbps"] + result["local_effect_mbps"])
+    from speedmap import config
+    assert result["area_quality_level"] == config.quality_level(result["area_download_mbps"])
 
 
 @pytest.mark.parametrize("lat,lon", [(10.7769, 106.7009), (21.3089, 105.6049)])

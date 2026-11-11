@@ -1,7 +1,6 @@
 """Area estimate: typical speed within config.AREA_RADIUS_M (1.5 km) of a clicked point.   Owner: Person 1/3
 
-Why: one Ookla tile is noisy; the average over the tiles around a point is much more reliable
-(spatial CV: about 78% correct quality level for 1.5 km circles, 62–71% for single tiles).
+Scores for the current training run are saved under artifacts/reports/regional.
 
 How: the points of the area are the Ookla tile centres inside the circle, weighted by their number of tests
 (where people actually use the network). If the circle has fewer than AREA_MIN_TILES tiles, grid points
@@ -17,16 +16,28 @@ from speedmap.features.spatial import EARTH_RADIUS_M, KM_PER_DEG_LAT
 
 
 def weighted_log_mean(values_mbps, weights) -> float:
-    values = np.clip(np.asarray(values_mbps, dtype=float), 0, None)
-    return float(np.expm1(np.average(np.log1p(values), weights=np.asarray(weights, dtype=float))))
+    values = np.asarray(values_mbps, dtype=float)
+    weights = np.asarray(weights, dtype=float)
+    if values.ndim != 1 or weights.shape != values.shape or not len(values):
+        raise ValueError("Speeds and weights must be non-empty, aligned vectors")
+    if not np.isfinite(values).all() or (values < 0).any():
+        raise ValueError("Speeds must be finite and non-negative")
+    if not np.isfinite(weights).all() or (weights <= 0).any():
+        raise ValueError("Weights must be finite and positive")
+    return float(np.expm1(np.average(np.log1p(values), weights=weights)))
 
 
 class AreaSampler:
     def __init__(self, tiles: pd.DataFrame):
+        if tiles.empty or not np.isfinite(tiles[["latitude", "longitude", "tests"]].to_numpy(dtype=float)).all():
+            raise ValueError("Area sampler requires finite, non-empty tiles")
+        if (tiles["tests"] <= 0).any():
+            raise ValueError("Area sampler requires positive test counts")
         self.tiles = tiles.reset_index(drop=True)
         self.tree = BallTree(np.radians(self.tiles[["latitude", "longitude"]].to_numpy()), metric="haversine")
 
-    def _grid(self, lat: float, lon: float, radius_m: float) -> pd.DataFrame:
+    @staticmethod
+    def _grid(lat: float, lon: float, radius_m: float) -> pd.DataFrame:
         step_lat = config.AREA_GRID_STEP_M / (KM_PER_DEG_LAT * 1000)
         step_lon = config.AREA_GRID_STEP_M / (111_320 * np.cos(np.radians(lat)))
         n = int(radius_m // config.AREA_GRID_STEP_M)
@@ -51,12 +62,13 @@ def area_estimate(predict_mbps, featurizer, sampler: AreaSampler, lat: float, lo
     feats = featurizer.features(pts["latitude"].to_numpy(), pts["longitude"].to_numpy())
     if columns is not None:
         feats = feats[columns]
-    preds = np.asarray(predict_mbps(feats), dtype=float).reshape(-1)
-    value = weighted_log_mean(preds, pts["weight"])
+    preds = np.asarray(predict_mbps(feats), dtype=float)
+    value = round(weighted_log_mean(preds, pts["weight"]), 1)
     return {
         "area_radius_m": radius_m,
-        "area_download_mbps": round(value, 1),
+        "area_download_mbps": value,
         "area_quality_level": config.quality_level(value),
         "area_points": len(pts),
         "area_ookla_tiles": int((pts["source"] == "ookla_tile").sum()),
+        "area_grid_points": int((pts["source"] == "grid").sum()),
     }

@@ -18,7 +18,7 @@ from urllib.request import urlopen
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from speedmap.runtime import resolve_mode
+from speedmap.runtime import resolve_mode  # noqa: E402
 
 WEB_URL = "http://127.0.0.1:5173"
 API_URL = "http://127.0.0.1:8000/api/health"
@@ -38,20 +38,23 @@ def environment_fingerprint(root, info, *paths):
 
 
 def require_model(root, env):
-    model_dir = root / "artifacts" / "models" / env.get("SPEEDMAP_MODEL_NAME", "hybrid")
+    model_dir = root / "artifacts" / "models" / env.get("SPEEDMAP_MODEL_NAME", "regional")
     run = env.get("SPEEDMAP_MODEL_RUN")
     if not run:
         latest = model_dir / "LATEST"
         if not latest.is_file():
             raise RuntimeError(
                 f"No trained model is available: {latest}\n"
-                "Ask the model team for the saved bundle, or use demo.bat for now."
+                "Run python scripts/train_baselines.py, or use demo.bat for now."
             )
         run = latest.read_text(encoding="utf-8").strip()
     if not run:
         raise RuntimeError("The model's LATEST file is empty. Select a saved model run first.")
     required = [model_dir / run / "model.joblib", model_dir / run / "metadata.json",
-                root / "data" / "interim" / "hanoi_towers.csv"]
+                root / "data" / "interim" / "hanoi_towers.csv",
+                root / "data" / "interim" / "hanoi_cells.csv",
+                root / "data" / "processed" / "hanoi_tiles.csv",
+                root / "data" / "reference" / "hanoi_context_grid.npz"]
     missing = [str(path) for path in required if not path.is_file()]
     if missing:
         raise RuntimeError("Real-model files are missing:\n  " + "\n  ".join(missing))
@@ -243,7 +246,7 @@ def launch(mode, no_browser=False, smoke_test=False):
     print(f"Using Python {sys.version.split()[0]} (64-bit): {sys.executable}", flush=True)
     env = os.environ.copy()
     mode = resolve_mode(mode, ROOT / "artifacts" / "models",
-                        env.get("SPEEDMAP_MODEL_NAME", "hybrid"), env.get("SPEEDMAP_MODEL_RUN"))
+                        env.get("SPEEDMAP_MODEL_NAME", "regional"), env.get("SPEEDMAP_MODEL_RUN"))
     env["SPEEDMAP_MODE"] = mode
     if mode == "model":
         require_model(ROOT, env)

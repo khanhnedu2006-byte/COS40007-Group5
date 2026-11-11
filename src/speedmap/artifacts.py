@@ -21,7 +21,7 @@ from speedmap.data.catalog import data_fingerprints
 
 
 def save_model(obj, name: str, metrics: dict | None = None, params: dict | None = None,
-               feature_columns: list | None = None, notes: str = "") -> Path:
+               feature_columns: list | None = None, notes: str = "", provenance: dict | None = None) -> Path:
     run_id = datetime.now().strftime("%Y%m%d-%H%M%S")
     run_dir = config.ARTIFACTS_MODELS / name / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -35,6 +35,7 @@ def save_model(obj, name: str, metrics: dict | None = None, params: dict | None 
         "metrics": metrics or {},
         "params": params or {},
         "notes": notes,
+        "provenance": provenance or {},
         "data_fingerprints": data_fingerprints(),
     }
     (run_dir / "metadata.json").write_text(json.dumps(metadata, indent=2, default=str), encoding="utf-8")

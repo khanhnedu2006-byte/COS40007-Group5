@@ -6,6 +6,7 @@ Baseline 2, Random Forest: same features as the main model EXCEPT theory_mbps (n
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.impute import SimpleImputer
 from sklearn.neighbors import KNeighborsRegressor
 
 from speedmap import config
@@ -24,6 +25,7 @@ class KNNBaseline(BaseSpeedModel):
         @type n_neighbors: int
         """
         self.n_neighbors = n_neighbors
+        self.columns = ["latitude", "longitude"]
         self.model = KNeighborsRegressor(
             n_neighbors=n_neighbors,
             weights="uniform",
@@ -132,6 +134,8 @@ class RandomForestBaseline(BaseSpeedModel):
         self.n_estimators = n_estimators
         self.min_samples_leaf = min_samples_leaf
         self.columns = [c for c in config.FEATURE_COLUMNS if c != "theory_mbps"]
+        # Fitted separately in each CV fold; retain all-empty context columns as zeros.
+        self.imputer = SimpleImputer(strategy="median", keep_empty_features=True)
         self.model = RandomForestRegressor(
             n_estimators=n_estimators,
             min_samples_leaf=min_samples_leaf,
@@ -158,7 +162,7 @@ class RandomForestBaseline(BaseSpeedModel):
         @return: This fitted model.
         @rtype: RandomForestBaseline
         """
-        features = X[self.columns]
+        features = self._features(X)
         targets = np.asarray(y, dtype=float)
         weights = (
             None
@@ -169,8 +173,6 @@ class RandomForestBaseline(BaseSpeedModel):
             raise ValueError("X and y must have the same number of rows")
         if weights is not None and len(weights) != len(features):
             raise ValueError("X and sample_weight must have the same number of rows")
-        if features.isna().any().any() or not np.isfinite(features.to_numpy()).all():
-            raise ValueError("Random Forest features must be finite and non-missing")
         if not np.isfinite(targets).all():
             raise ValueError("Targets must be finite")
         if weights is not None and (
@@ -178,8 +180,17 @@ class RandomForestBaseline(BaseSpeedModel):
         ):
             raise ValueError("sample_weight values must be finite and non-negative")
 
-        self.model.fit(features, targets, sample_weight=weights)
+        self.model.fit(self.imputer.fit_transform(features), targets, sample_weight=weights)
         return self
+
+    def _features(self, X: pd.DataFrame) -> pd.DataFrame:
+        features = X[self.columns]
+        required = [c for c in self.columns if c not in config.CONTEXT_FEATURES]
+        if not np.isfinite(features[required].to_numpy(dtype=float)).all():
+            raise ValueError("Random Forest required features must be finite and non-missing")
+        if np.isinf(features.to_numpy(dtype=float)).any():
+            raise ValueError("Random Forest features must not contain infinity")
+        return features
 
     def predict(self, X: pd.DataFrame) -> np.ndarray:
         """Predict download speed from non-physics feature columns.
@@ -189,7 +200,7 @@ class RandomForestBaseline(BaseSpeedModel):
         @return: Predicted download speeds in Mbps.
         @rtype: numpy.ndarray
         """
-        return self.model.predict(X[self.columns])
+        return self.model.predict(self.imputer.transform(self._features(X)))
 
     def get_params(self) -> dict:
         """Return the settings stored alongside the model artifact."""
@@ -197,4 +208,5 @@ class RandomForestBaseline(BaseSpeedModel):
             "n_estimators": self.n_estimators,
             "min_samples_leaf": self.min_samples_leaf,
             "random_state": config.RANDOM_SEED,
+            "context_imputation": "training median; all-empty columns use zero",
         }

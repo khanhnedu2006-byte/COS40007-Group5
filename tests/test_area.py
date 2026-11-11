@@ -5,7 +5,7 @@ import pytest
 
 from speedmap import config
 from speedmap.evaluation.area import area_level_scores
-from speedmap.inference.area import AreaSampler, weighted_log_mean
+from speedmap.inference.area import AreaSampler, area_estimate, weighted_log_mean
 
 TILES = pd.DataFrame({
     "quadkey": [str(i) for i in range(8)],
@@ -36,3 +36,46 @@ def test_weighted_log_mean():
 def test_perfect_predictions_score_100_percent():
     s = area_level_scores(TILES, TILES["download_mbps"], min_tests=10)
     assert s["level_accuracy"] == 1.0 and s["mae_mbps"] == pytest.approx(0)
+
+
+def test_no_supported_areas_returns_explicit_missing_metrics():
+    scores = area_level_scores(TILES.assign(tests=1), np.ones(len(TILES)), min_tests=30)
+    assert scores["n_areas"] == 0 and scores["share_of_clicks_evaluated"] == 0
+    assert scores["mae_mbps"] is None and scores["level_accuracy"] is None
+
+
+@pytest.mark.parametrize("predictions", [np.ones(7), np.full(8, np.nan), np.full(8, -1), np.ones((8, 1))])
+def test_invalid_scoring_predictions_are_rejected(predictions):
+    with pytest.raises(ValueError):
+        area_level_scores(TILES, predictions)
+
+
+def test_regional_score_pools_all_tiles_before_scoring():
+    tiles = TILES.iloc[:2].copy()
+    truth = weighted_log_mean(tiles.download_mbps, tiles.tests)
+    pred = weighted_log_mean([10, 200], tiles.tests)
+    scores = area_level_scores(tiles, [10, 200], min_tests=30)
+    assert scores['mae_mbps'] == pytest.approx(abs(truth - pred))
+    assert scores['n_areas'] == 2
+
+
+def test_dense_and_empty_regions_report_actual_sampling_support():
+    class Featurizer:
+        def features(self, lat, lon):
+            return pd.DataFrame({'latitude': lat, 'longitude': lon})
+
+    sampler = AreaSampler(TILES)
+    def predict(X):
+        return np.full(len(X), 100.)
+    dense = area_estimate(predict, Featurizer(), sampler, 21.0285, 105.8542)
+    assert dense['area_points'] == dense['area_ookla_tiles'] == 7
+    assert dense['area_grid_points'] == 0
+    assert dense['area_quality_level'] == 'Good'
+    empty = area_estimate(predict, Featurizer(), sampler, 20.8, 105.8)
+    assert empty['area_ookla_tiles'] == 0
+    assert empty['area_points'] == empty['area_grid_points'] > 0
+
+
+def test_nonfinite_inference_cannot_be_hidden_by_pooling():
+    with pytest.raises(ValueError, match='finite'):
+        weighted_log_mean([np.nan, 100], [1, 2])

@@ -80,3 +80,17 @@ Rebuild: `python scripts/run_pipeline.py --step towers` then `--step features`.
 - hanoi_cells.csv: 3,317 cells
 - hanoi_context_grid.npz: 870 x 730 grid, 9 layers (population total inside Hanoi 8.24 million)
 - hanoi_towers.csv: 2,398 towers (2,315 OpenCelliD + 83 OpenStreetMap telecom masts; 2,153 inside Hanoi). Column `source` tells them apart.
+
+# Regional baseline training contract (11 Nov 2026)
+
+The app's training entrypoint now consumes **hanoi_tiles.csv**, with one pooled row per tile over the latest four quarters, rather than the tile-quarter table. Rebuild towers/cells and both feature tables before training; older processed files lack the current infrastructure, activity and context columns. The rebuilt pooled table has **5,212 rows, 40 columns and 831 spatial blocks**, spanning 2025 Q4–2026 Q3.
+
+The feature CLI skips physics by default: `theory_mbps` is intentionally NaN and the remaining features and schema are unchanged. Use `--step features --include-physics` to attempt the optional theory feature for hybrid work. The Python table builders and PointFeaturizer accept `include_physics=False` for baseline callers; their default retains the physics-enabled behavior used by existing notebooks. The validator accepts the same flag, without relaxing validation of required non-physics columns.
+
+KNN uses coordinates only. Random Forest requires the ordered `config.FEATURE_COLUMNS` except `theory_mbps`. Optional context columns may contain NaN: its saved imputer fills them with medians learned only from each training fold, or zero for a wholly missing column. Missing required non-context features are errors. `quarter_index`, quality labels, test/device counts and measured upload/latency are not direct model inputs. Test counts weight KNN coordinate aggregation, Random Forest training (`sqrt(tests)`), and regional pooling (raw test counts).
+
+The shared PointFeaturizer uses the same processed tower/cell tables, pooled device activity and reference context grid for training and inference. Baselines exclude the unfinished physics column. Static features and unlabeled activity counts are available across held-out blocks; target speeds never enter those features.
+
+The regional bundle is saved under `artifacts/models/regional/<run>/` with the selected model, ordered input columns, training settings/period, evaluation metrics and SHA-256 input fingerprints. The [training guide](training.md) describes the matching out-of-fold report files. Keep processed inputs and artifacts from the same run together, and read quadkeys as strings. Generated input files and saved models are excluded from Git.
+
+The 11 Nov comparison selected KNN with regional MAE **20.80 Mbps**, quality accuracy **73.84%**, and **80.10%** evaluated-click coverage. These replace earlier informal accuracy claims and are spatial out-of-fold model-selection results. Production sparse-area grid sampling is not measured by this evaluation. See [training.md](training.md) for full results and limitations.

@@ -22,8 +22,8 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from speedmap import config
-from speedmap.data.catalog import (
+from speedmap import config  # noqa: E402
+from speedmap.data.catalog import (  # noqa: E402
     file_digest,
     load_ci_training_table,
     load_training_table,

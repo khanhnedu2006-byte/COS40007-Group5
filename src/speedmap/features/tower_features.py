@@ -29,8 +29,9 @@ def theory_for_points(lat: np.ndarray, lon: np.ndarray, index: TowerIndex) -> np
         return np.full(len(dists), np.nan)
 
 
-def tower_features(lat: np.ndarray, lon: np.ndarray, index: TowerIndex) -> pd.DataFrame:
-    """Compute all tower features for many points."""
+def tower_features(lat: np.ndarray, lon: np.ndarray, index: TowerIndex,
+                   *, include_physics: bool = True) -> pd.DataFrame:
+    """Compute tower features; baseline callers leave the unused theory column empty."""
     lat = np.asarray(lat, dtype=float)
     lon = np.asarray(lon, dtype=float)
     feats = pd.DataFrame({
@@ -39,6 +40,6 @@ def tower_features(lat: np.ndarray, lon: np.ndarray, index: TowerIndex) -> pd.Da
         "dist_nearest_tower_m": np.round(index.nearest_distance(lat, lon), 1),
         "towers_500m": index.count_within(lat, lon, 500),
         "towers_1km": index.count_within(lat, lon, 1000),
-        "theory_mbps": theory_for_points(lat, lon, index),
+        "theory_mbps": theory_for_points(lat, lon, index) if include_physics else np.full(len(lat), np.nan),
     })
     return feats[["latitude", "longitude"] + config.TOWER_FEATURES]

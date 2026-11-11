@@ -97,7 +97,7 @@ def test_missing_actual_input_never_produces_demo(current_data, name):
 
 def test_actual_selects_existing_model_without_masking_broken_bundles(tmp_path):
     assert resolve_mode("actual", tmp_path) == "data"
-    directory = tmp_path / "hybrid"
+    directory = tmp_path / "regional"
     directory.mkdir()
     (directory / "LATEST").write_text("broken-run")
     assert resolve_mode("actual", tmp_path) == "model"
@@ -106,7 +106,7 @@ def test_actual_selects_existing_model_without_masking_broken_bundles(tmp_path):
 
 
 def test_invalid_registered_model_never_changes_to_recorded_data(current_data):
-    directory = config.ARTIFACTS_MODELS / "hybrid"
+    directory = config.ARTIFACTS_MODELS / "regional"
     directory.mkdir(parents=True)
     (directory / "LATEST").write_text("missing-run")
     with TestClient(create_app("actual")) as client:

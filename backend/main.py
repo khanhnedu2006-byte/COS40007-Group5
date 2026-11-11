@@ -19,7 +19,7 @@ logger = logging.getLogger("uvicorn.error")
 def create_app(mode: str | None = None, predictor=None) -> FastAPI:
     selected_mode = resolve_mode(
         mode or os.getenv("SPEEDMAP_MODE", "actual"), config.ARTIFACTS_MODELS,
-        os.getenv("SPEEDMAP_MODEL_NAME", "hybrid"), os.getenv("SPEEDMAP_MODEL_RUN"),
+        os.getenv("SPEEDMAP_MODEL_NAME", "regional"), os.getenv("SPEEDMAP_MODEL_RUN"),
     )
 
     @asynccontextmanager
@@ -39,7 +39,7 @@ def create_app(mode: str | None = None, predictor=None) -> FastAPI:
                     from speedmap.inference.predictor import Predictor
 
                     app.state.predictor = Predictor(
-                        os.getenv("SPEEDMAP_MODEL_NAME", "hybrid"),
+                        os.getenv("SPEEDMAP_MODEL_NAME", "regional"),
                         os.getenv("SPEEDMAP_MODEL_RUN") or None,
                     )
             except Exception:
@@ -47,7 +47,7 @@ def create_app(mode: str | None = None, predictor=None) -> FastAPI:
         yield
         app.state.predictor = None
 
-    app = FastAPI(title="Hanoi Signal API", version="0.2.0", lifespan=lifespan)
+    app = FastAPI(title="Hanoi Signal API", version="0.3.0", lifespan=lifespan)
     origins = os.getenv("SPEEDMAP_CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
     app.add_middleware(
         CORSMiddleware,
@@ -113,7 +113,7 @@ def create_app(mode: str | None = None, predictor=None) -> FastAPI:
         try:
             service = get_predictor()
             payload = service.predict(lat, lon)
-            if hasattr(service, "predict_area"):
+            if "area_download_mbps" not in payload and hasattr(service, "predict_area"):
                 payload.update(service.predict_area(lat, lon))
             result = PredictionResponse.model_validate(payload)
         except HTTPException:
@@ -123,7 +123,8 @@ def create_app(mode: str | None = None, predictor=None) -> FastAPI:
             raise HTTPException(503, "Could not estimate this location. Try again or check the backend logs.") from exc
         logger.info(json.dumps({
             "event": "prediction", "lat": lat, "lon": lon,
-            "download_mbps": result.download_mbps, "model_version": result.model_version,
+            "area_download_mbps": result.area_download_mbps, "area_radius_m": result.area_radius_m,
+            "model_version": result.model_version,
         }))
         return result
 

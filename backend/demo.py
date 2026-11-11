@@ -9,10 +9,11 @@ from speedmap import config
 from speedmap.data.boundary import contains
 from speedmap.data.catalog import load_tower_table
 from speedmap.features.spatial import TowerIndex
+from speedmap.inference.area import AreaSampler, weighted_log_mean
 
 
 class DemoPredictor:
-    version = "demo-v1"
+    version = "demo-regional-v1"
 
     def __init__(self, tower_path=None):
         path = Path(tower_path) if tower_path is not None else config.TOWERS_FILE
@@ -41,22 +42,21 @@ class DemoPredictor:
     def tower_list(self):
         return self.towers.to_dict(orient="records")
 
+    def _point_speed(self, lat: float, lon: float) -> float:
+        distance = float(self.index.nearest(lat, lon, 1).iloc[0]["distance_m"])
+        wave = math.sin((lat - 21) * 90) * math.cos((lon - 105.8) * 70)
+        return max(8, 180 + 75 * wave - min(distance / 55, 140))
+
     def predict(self, lat: float, lon: float):
         nearest = self.index.nearest(lat, lon, config.NEAREST_TOWERS_IN_POPUP)
-        distance = float(nearest.iloc[0]["distance_m"])
-        wave = math.sin((lat - 21) * 90) * math.cos((lon - 105.8) * 70)
-        download = round(max(8, 180 + 75 * wave - min(distance / 55, 140)), 1)
-        width = round(20 + min(distance / 100, 65), 1)
-        theory = round(download + 35 + 12 * math.sin(lat * 50), 1)
+        points = AreaSampler._grid(lat, lon, config.AREA_RADIUS_M)
+        speeds = [self._point_speed(a, b) for a, b in zip(points.latitude, points.longitude)]
+        download = round(weighted_log_mean(speeds, points["weight"]), 1)
         return {
-            "latitude": lat, "longitude": lon, "download_mbps": download,
-            "download_low": round(max(0, download - width), 1),
-            "download_high": round(download + width, 1),
-            "upload_mbps": round(download * 0.23 + 3, 1),
-            "latency_ms": round(16 + distance / 400 + 5 * (1 - wave), 1),
-            "quality_level": config.quality_level(download),
-            "theory_mbps": theory, "local_effect_mbps": round(download - theory, 1),
+            "latitude": lat, "longitude": lon, "area_download_mbps": download,
+            "area_quality_level": config.quality_level(download),
+            "area_radius_m": config.AREA_RADIUS_M, "area_points": len(points),
+            "area_ookla_tiles": 0, "area_grid_points": len(points),
             "nearest_towers": nearest.to_dict(orient="records"),
-            "source": "demo", "model_version": self.version,
-            "interval_kind": "illustrative", "confidence_level": None,
+            "source": "demo", "model_version": self.version, "model_name": "simulated",
         }

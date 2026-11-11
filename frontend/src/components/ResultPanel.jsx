@@ -27,51 +27,31 @@ export default function ResultPanel({ result, error, loading, selected, onRetry 
   const demo = result.source === "demo";
   const dataMode = result.source === "data";
   const simulatedTowers = result.nearest_towers.every((tower) => tower.source === "simulated");
-  const maximum = Math.max(result.download_high, 1);
-  const lowPosition = result.download_low / maximum * 100;
-  const pointPosition = result.download_mbps / maximum * 100;
+  if (result.area_download_mbps == null) return <article className="snapshot result-card"><h3>No recorded region available</h3><p>No measured tiles lie within 1.5 km of this point. Choose another region or use a trained model for grid-backed estimates.</p></article>;
+  const radius = `${(result.area_radius_m / 1000).toFixed(1)} km`;
+  const level = result.area_quality_level;
   return <>
     <article className="snapshot result-card">
-      <div className="result-location"><Icon name="pin" size={16} /><strong>{selected?.name || "Selected location"}</strong><span className="result-type">{demo ? "SIMULATED" : dataMode ? "DATA ESTIMATE" : "MODEL ESTIMATE"}</span></div>
+      <div className="result-location"><Icon name="pin" size={16} /><strong>{selected?.name || "Selected location"}</strong><span className="result-type">{demo ? "SIMULATED" : dataMode ? "DATA ESTIMATE" : "ESTIMATE"}</span></div>
       <p className="coordinates">{result.latitude.toFixed(5)}° N <span>/</span> {result.longitude.toFixed(5)}° E</p>
-      <div className="speed-label"><Icon name="down" size={14} />DOWNLOAD SPEED</div>
-      <div className="download-value">{result.download_mbps.toFixed(1)}<span>Mbps</span></div>
-      <div className={`quality-badge quality-${result.quality_level.toLowerCase()}`}><span />{result.quality_level} connection</div>
-      <p className="quality-description">{descriptions[result.quality_level]}</p>
-      <section className="area-estimate" aria-label="Area estimate">
-        <h3>The area around this point</h3>
-        <p>{((result.area_radius_m ?? 1500) / 1000).toLocaleString()} km radius · outlined on the map</p>
-        {result.area_download_mbps != null ? <>
-          <strong>{result.area_download_mbps.toFixed(1)} Mbps <span>· {result.area_quality_level}</span></strong>
-          <p>{dataMode ? "Recorded download average" : "Predicted typical download"} across {result.area_points} {dataMode ? "tiles" : "sample points"}.</p>
-        </> : <p>{demo ? "The circle shows the area around this simulated point; no area average is calculated in demo mode." : "No recorded tiles inside this radius. The point estimate above uses nearby data."}</p>}
-      </section>
-      <div className="range-section">
-        <div><span>{demo ? "Illustrative range" : dataMode ? "Nearby measured range" : `${Math.round(result.confidence_level * 100)}% prediction range`}</span><strong>{result.download_low.toFixed(0)}–{result.download_high.toFixed(0)} <small>Mbps</small></strong></div>
-        <div className="range-track"><span className="range-fill" style={{ left: `${lowPosition}%`, width: `${100 - lowPosition}%` }} /><span className="range-point" style={{ left: `${Math.min(pointPosition, 98)}%` }} /></div>
-        {demo && <p>Demo range only; coverage has not been measured.</p>}
-        {dataMode && <p>Variation across nearby tiles, not a confidence interval.</p>}
-      </div>
-      <div className="secondary-metrics">
-        <div><span><Icon name="up" size={15} />Upload</span><strong>{result.upload_mbps.toFixed(1)}<small>Mbps</small></strong></div>
-        <div><span><Icon name="clock" size={15} />Latency</span><strong>{result.latency_ms.toFixed(0)}<small>ms</small></strong></div>
-      </div>
-      <Legend level={result.quality_level} />
+      <div className="speed-label"><Icon name="down" size={14} />REGIONAL DOWNLOAD SPEED</div>
+      <div className="download-value">{result.area_download_mbps.toFixed(1)}<span>Mbps</span></div>
+      <div className={`quality-badge quality-${level.toLowerCase()}`}><span />{level} connection</div>
+      <p className="quality-description">{descriptions[level]}</p>
+      <p className="area-context">Typical speed within {radius} of this point.</p>
+      <p className="area-support">{demo ? `Simulated across ${result.area_grid_points} grid points.` : `${result.area_ookla_tiles} measured tiles used for sampling.`}
+        {!demo && result.area_grid_points > 0 && ` Sparse coverage: ${result.area_grid_points} grid points added.`}</p>
+      <Legend level={level} />
     </article>
     <section className="nearest-section" aria-label="Three nearest towers">
-      <div className="nearest-heading"><Icon name="tower" size={16} /><h3>Closest {simulatedTowers ? "demo towers" : "cell locations"}</h3><span>NEAR THIS POINT</span></div>
+      <div className="nearest-heading"><Icon name="tower" size={16} /><h3>Closest {simulatedTowers ? "demo towers" : "cell locations"}</h3><span>ON THE MAP</span></div>
       {result.nearest_towers.map((tower, index) => <div className="nearest-row" key={tower.tower_id}>
-        <span className="tower-number">{String(index + 1).padStart(2, "0")}</span><span>{tower.source === "simulated" ? "Demo tower" : tower.source === "osm" ? "OSM mast" : "Cell location"} <small>{tower.tower_id}{tower.source === "opencellid" ? " · OpenCelliD" : ""}</small></span><strong>{formatDistance(tower.distance_m)}</strong>
+        <span className="tower-number">{String(index + 1).padStart(2, "0")}</span><span>{tower.source === "simulated" ? "Demo tower" : "Cell location"} <small>{tower.tower_id}</small></span><strong>{formatDistance(tower.distance_m)}</strong>
       </div>)}
     </section>
     <details className="model-details"><summary>Behind the estimate<Icon name="chevron" size={14} /></summary>
-      <p>{demo ? "Demo speeds and ranges are interface fixtures. Tower distances come from the loaded locations." : dataMode ? "This spatial estimate combines nearby recorded Ookla tiles using distance and test-count weights. It uses the current dataset while the hybrid model is being developed." : "The hybrid model adjusts a theoretical speed using local tower and location features."}</p>
-      <dl>
-        {result.data_support && <><div><dt>Nearby recorded tiles</dt><dd>{result.data_support.tiles_used}</dd></div><div><dt>Recorded speed tests</dt><dd>{result.data_support.tests.toLocaleString()}</dd></div><div><dt>Nearest tile centre</dt><dd>{formatDistance(result.data_support.nearest_tile_distance_m)}</dd></div><div><dt>Latest nearby quarter</dt><dd>{result.data_support.latest_quarter}</dd></div></>}
-        {result.theory_mbps != null && <div><dt>{demo ? "Simulated theory" : "Theoretical speed"}</dt><dd>{result.theory_mbps.toFixed(1)} Mbps</dd></div>}
-        {result.local_effect_mbps != null && <div><dt>Local adjustment</dt><dd>{result.local_effect_mbps > 0 ? "+" : ""}{result.local_effect_mbps.toFixed(1)} Mbps</dd></div>}
-        <div><dt>Version</dt><dd>{result.model_version}</dd></div>
-      </dl>
+      <p>{demo ? "These speeds are simulated. Tower locations use the local dataset when available." : dataMode ? "Recorded tile speeds are pooled using test-weighted log means. These historical measurements are not live speed tests." : "Predictions across nearby tiles are pooled using test-weighted log means. More heavily measured tiles contribute more to the regional estimate."}</p>
+      <dl>{result.data_support && <div><dt>Latest nearby quarter</dt><dd>{result.data_support.latest_quarter}</dd></div>}<div><dt>Model</dt><dd>{demo ? "Simulated" : dataMode ? "Recorded data" : result.model_name === "knn" ? "KNN" : "Random Forest"}</dd></div><div><dt>Radius</dt><dd>{radius}</dd></div><div><dt>Version</dt><dd>{result.model_version}</dd></div></dl>
     </details>
   </>;
 }
