@@ -52,6 +52,10 @@ def run_features():
     train = build_training_table(clean, hanoi_towers, cells, pool_tiles(clean))
     train.to_csv(config.TRAIN_FILE, index=False)
     print(f"{len(train):,} rows -> {config.TRAIN_FILE}")
+    from speedmap.data.catalog import sync_ci_snapshot
+
+    manifest = sync_ci_snapshot()
+    print(f"CI snapshot updated: {manifest['rows']:,} rows, SHA-256 {manifest['sha256']}")
 
 
 def run_baselines():

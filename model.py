@@ -4,20 +4,33 @@ Trains a small neural network (TensorFlow) that predicts mobile download speed i
 from the location and the cell-tower features built by our data pipeline, then saves
 model_results.png and metrics.txt for the workflow to upload.
 
-Data: data/ci/hanoi_train.csv, a snapshot of data/processed/hanoi_train.csv
-(rebuild with: python scripts/run_pipeline.py --step features).
+Local data: data/processed/hanoi_train.csv. CI explicitly selects a versioned snapshot
+refreshed by python scripts/sync_ci_data.py. No implicit fallback to older data.
 """
+import argparse
+import json
+import sys
 from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")  # chạy trên máy chủ không có màn hình
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import tensorflow as tf
 
 ROOT = Path(__file__).resolve().parent
-DATA_FILE = ROOT / "data" / "ci" / "hanoi_train.csv"
+sys.path.insert(0, str(ROOT / "src"))
+
+from speedmap import config
+from speedmap.data.catalog import (
+    file_digest,
+    load_ci_training_table,
+    load_training_table,
+)
+
+DATA_FILE = config.TRAIN_FILE
+CI_DATA_FILE = ROOT / "data" / "ci" / "hanoi_train.csv"
 FEATURES = ["latitude", "longitude", "dist_nearest_tower_m", "towers_500m", "towers_1km", "quarter_index"]
 TARGET = "download_mbps"
 TEST_SHARE = 0.2
@@ -45,7 +58,9 @@ def spatial_split(df: pd.DataFrame):
     return df[~is_test], df[is_test]
 
 
-def build_model(x_train: np.ndarray) -> tf.keras.Model:
+def build_model(x_train: np.ndarray):
+    import tensorflow as tf
+
     norm = tf.keras.layers.Normalization()
     norm.adapt(x_train)
     model = tf.keras.Sequential([
@@ -59,13 +74,29 @@ def build_model(x_train: np.ndarray) -> tf.keras.Model:
     return model
 
 
-def main() -> None:
+def main(argv=None) -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--data-file", type=Path, default=DATA_FILE)
+    parser.add_argument("--check-data", action="store_true", help="Validate the selected input without importing TensorFlow or training.")
+    args = parser.parse_args(argv)
+    if args.data_file.resolve() == CI_DATA_FILE.resolve():
+        df, provenance = load_ci_training_table(args.data_file)
+    else:
+        df = load_training_table(args.data_file)
+        provenance = {"source": str(args.data_file), "sha256": file_digest(args.data_file)}
+    if args.check_data:
+        print(json.dumps({"source": str(args.data_file), "rows": len(df), "tiles": df["quadkey"].nunique(),
+                          "first_quarter": df["quarter"].min(), "last_quarter": df["quarter"].max(),
+                          "sha256": provenance["sha256"]}, indent=2))
+        return
+
+    import tensorflow as tf
+
     np.random.seed(SEED)
     tf.random.set_seed(SEED)
 
-    df = pd.read_csv(DATA_FILE)
     train, test = spatial_split(df)
-    x_train, x_test = prepare(train), prepare(test)
+    x_train = prepare(train)
     # Học trên log tốc độ vì phân bố download lệch phải; trọng số = sqrt(số test)
     y_train = np.log1p(train[TARGET].to_numpy("float32"))
     w_train = train["sample_weight"].to_numpy("float32")
@@ -94,6 +125,7 @@ def main() -> None:
 
     metrics = (
         "Hanoi mobile download speed - neural network (TensorFlow)\n"
+        f"Input: {args.data_file}\nDataset SHA-256: {provenance['sha256']}\n"
         f"Data: {len(df):,} tile-quarter rows, {df['quadkey'].nunique():,} tiles, "
         f"quarters {df['quarter'].min()} to {df['quarter'].max()}\n"
         f"Split: spatial blocks (2 km), train {len(train):,} rows, test {len(test):,} rows with >= {MIN_TESTS_FOR_EVAL} tests\n"
@@ -110,7 +142,7 @@ def main() -> None:
     (ROOT / "metrics.txt").write_text(metrics, encoding="utf-8")
     print(metrics)
 
-    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+    _fig, axes = plt.subplots(1, 2, figsize=(12, 5))
     axes[0].plot(history.history["loss"], label="train")
     axes[0].plot(history.history["val_loss"], label="validation")
     axes[0].set_title("Training loss (MSE on log speed)")

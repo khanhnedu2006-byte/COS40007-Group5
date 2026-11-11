@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useRef } from "react";
-import { GeoJSON, MapContainer, Polygon, ScaleControl, TileLayer, useMap, useMapEvents } from "react-leaflet";
+import { Circle, GeoJSON, MapContainer, Polygon, ScaleControl, TileLayer, Tooltip, useMap, useMapEvents } from "react-leaflet";
 import { HANOI_BOUNDS, HANOI_CENTER } from "../hanoi.js";
 import { BASEMAPS } from "../basemaps.js";
 import ClickHandler from "./ClickHandler.jsx";
@@ -62,6 +62,12 @@ const MapScene = memo(function MapScene({ towers, boundary, area, showTowers, sh
     {area && <Polygon positions={area.mask} interactive={false} pathOptions={MASK_STYLE} />}
     {showBoundary && boundary && <GeoJSON data={boundary} interactive={false} style={BOUNDARY_STYLE} />}
     {showTowers && <TowerLayer towers={towers} />}
+    {result && selected && !selected.outside && <Circle
+      center={[result.latitude, result.longitude]} radius={result.area_radius_m ?? 1500}
+      pathOptions={{ color: "#167665", weight: 2, dashArray: "7 5", fillColor: "#167665", fillOpacity: 0.09 }}
+      bubblingMouseEvents={false}>
+      <Tooltip sticky>{((result.area_radius_m ?? 1500) / 1000).toLocaleString()} km radius around this point</Tooltip>
+    </Circle>}
     {selected && !selected.outside && <SelectedPoint result={result} selected={selected} showTowers={showTowers} />}
     <ScaleControl position="bottomleft" imperial={false} />
   </MapContainer>;

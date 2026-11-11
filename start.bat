@@ -1,2 +1,2 @@
 @echo off
-call "%~dp0scripts\launch.cmd" model %*
+call "%~dp0scripts\launch.cmd" actual %*

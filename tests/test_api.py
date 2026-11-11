@@ -2,12 +2,14 @@
 import pytest
 from fastapi.testclient import TestClient
 
+from backend.demo import DemoPredictor
 from backend.main import create_app
 
 
 @pytest.fixture(scope="module")
-def client():
-    with TestClient(create_app("demo")) as service:
+def client(tmp_path_factory):
+    predictor = DemoPredictor(tmp_path_factory.mktemp("demo-fixtures") / "missing.csv")
+    with TestClient(create_app("demo", predictor)) as service:
         yield service
 
 
@@ -15,6 +17,7 @@ def test_demo_health_identifies_fixture_data(client):
     status = client.get("/api/health").json()
     assert status["ready"] and status["mode"] == "demo"
     assert not status["model_loaded"]
+    assert status["tower_data_source"] == "simulated"
     towers = client.get("/api/towers").json()
     assert len(towers) == status["tower_count"] > 3
     assert all(tower["source"] == "simulated" for tower in towers)
@@ -28,6 +31,8 @@ def test_inside_points_return_consistent_complete_predictions(client, lat, lon):
     assert result == client.get("/api/predict", params={"lat": lat, "lon": lon}).json()
     assert result["source"] == "demo" and result["interval_kind"] == "illustrative"
     assert result["confidence_level"] is None
+    assert result["area_radius_m"] == 1500
+    assert result["area_download_mbps"] is None
     assert result["download_low"] <= result["download_mbps"] <= result["download_high"]
     distances = [tower["distance_m"] for tower in result["nearest_towers"]]
     assert len(distances) == 3 and distances == sorted(distances)
