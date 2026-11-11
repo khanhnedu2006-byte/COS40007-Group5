@@ -57,6 +57,6 @@ def area_estimate(predict_mbps, featurizer, sampler: AreaSampler, lat: float, lo
         "area_radius_m": radius_m,
         "area_download_mbps": round(value, 1),
         "area_quality_level": config.quality_level(value),
-        "area_points": int(len(pts)),
+        "area_points": len(pts),
         "area_ookla_tiles": int((pts["source"] == "ookla_tile").sum()),
     }

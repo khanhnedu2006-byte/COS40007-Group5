@@ -17,6 +17,7 @@ from pathlib import Path
 import joblib
 
 from speedmap import config
+from speedmap.data.catalog import data_fingerprints
 
 
 def save_model(obj, name: str, metrics: dict | None = None, params: dict | None = None,
@@ -34,6 +35,7 @@ def save_model(obj, name: str, metrics: dict | None = None, params: dict | None 
         "metrics": metrics or {},
         "params": params or {},
         "notes": notes,
+        "data_fingerprints": data_fingerprints(),
     }
     (run_dir / "metadata.json").write_text(json.dumps(metadata, indent=2, default=str), encoding="utf-8")
     (config.ARTIFACTS_MODELS / name / "LATEST").write_text(run_id, encoding="utf-8")

@@ -8,7 +8,7 @@ Produced by Person 3 (backend), using the bundle saved by Person 2 (notebook 06)
  "model_version": "demo-v1", "tower_count": 2398, "tower_data_source": "dataset"}
 ```
 
-`ready` means predictions can be served. `model_loaded` is false in demo mode.
+`ready` means predictions can be served. `model_loaded` is false in data and demo modes. `mode` is `data`, `demo` or `model` after resolving the `actual` startup setting. Data mode also returns `observation_count`, `data_period` and `data_fingerprints` (canonical SHA-256 hashes).
 `tower_count` depends on the loaded file. `tower_data_source` distinguishes `"dataset"` locations from the `"simulated"` fallback, independently of prediction mode; it is `null` when the service is unavailable.
 Model startup failures return `status: "unavailable"`, `ready: false` and prediction/tower endpoints return 503. Model mode never falls back to simulated data.
 
@@ -35,7 +35,7 @@ Returns the Hanoi administrative boundary as a GeoJSON FeatureCollection, using 
   "interval_kind": "conformal", "confidence_level": 0.8
 }
 ```
-Errors: `422` if the point is outside Hanoi; `503` if no model is saved yet.
+Errors: `422` if the point is outside Hanoi; `503` when the selected prediction service is unavailable.
 
 Missing, malformed, non-finite and out-of-range coordinates also return 422 using FastAPI's standard validation response. Prediction errors use a string `detail`. Coordinates inside the old bounding box but outside the administrative polygon are rejected.
 
@@ -58,3 +58,10 @@ The inference adapter calls `model.predict(features)`, `conformal.interval(predi
 Points = Ookla tiles within 1.5 km weighted by tests (grid points every 300 m are added where there are fewer than 5 tiles).
 Spatial CV: 77.8% correct quality level for 1.5 km areas (single tiles: 62–71%). The UI should draw the 1.5 km circle and
 word the result as "the area around this point", not as the exact speed at the point.
+## Recorded-data estimates
+
+Default startup uses `data` when no model is registered. It reads `data/processed/hanoi_tiles.csv` and the same canonical tower file as model/demo modes. Prediction `source` is `data`, `interval_kind` is `neighbour_spread`, and `confidence_level`, `theory_mbps` and `local_effect_mbps` are null. The range is nearby observed minimum/maximum download, not a prediction confidence interval.
+
+`data_support` contains `tiles_used`, `tests` (sum of tests across selected neighbours), `nearest_tile_distance_m` and `latest_quarter`. Up to five neighbours are used. A recorded centre preserves its measurements exactly; other points use distance/test-count weighted spatial estimates. Version includes the tile-file hash.
+
+`metadata.json` written by `save_model` includes `data_fingerprints` for available canonical towers, training, tiles and boundary inputs. Model inference requires tower provenance and verifies every recorded fingerprint against current files. Changed or missing files and unversioned models fail readiness with guidance to supply a matching retrained bundle. Only save an artifact after fitting on the recorded inputs.

@@ -16,6 +16,10 @@ from urllib.error import URLError
 from urllib.request import urlopen
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
+
+from speedmap.runtime import resolve_mode
+
 WEB_URL = "http://127.0.0.1:5173"
 API_URL = "http://127.0.0.1:8000/api/health"
 
@@ -238,9 +242,17 @@ def launch(mode, no_browser=False, smoke_test=False):
         raise RuntimeError("Install 64-bit Python 3.11 or later (including 3.14). The scientific dependencies need a 64-bit runtime.")
     print(f"Using Python {sys.version.split()[0]} (64-bit): {sys.executable}", flush=True)
     env = os.environ.copy()
+    mode = resolve_mode(mode, ROOT / "artifacts" / "models",
+                        env.get("SPEEDMAP_MODEL_NAME", "hybrid"), env.get("SPEEDMAP_MODEL_RUN"))
     env["SPEEDMAP_MODE"] = mode
     if mode == "model":
         require_model(ROOT, env)
+    elif mode == "data":
+        required = [ROOT / "data" / "interim" / "hanoi_towers.csv", ROOT / "data" / "processed" / "hanoi_tiles.csv"]
+        missing = [str(path) for path in required if not path.is_file()]
+        if missing:
+            raise RuntimeError("Current Hanoi data files are missing:\n  " + "\n  ".join(missing))
+        print("Using current Ookla observations and tower data for spatial estimates.", flush=True)
     node = shutil.which("node")
     npm = shutil.which("npm.cmd" if os.name == "nt" else "npm")
     if not node or not npm:
@@ -300,7 +312,7 @@ def launch(mode, no_browser=False, smoke_test=False):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", choices=["demo", "model"])
+    parser.add_argument("mode", choices=["actual", "data", "demo", "model"])
     parser.add_argument("--no-browser", action="store_true")
     parser.add_argument("--smoke-test", action="store_true", help="Start, verify readiness, then stop owned services.")
     args = parser.parse_args()

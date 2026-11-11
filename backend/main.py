@@ -11,14 +11,16 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.schemas import HealthResponse, PredictionResponse, Tower
 from speedmap import config
+from speedmap.runtime import resolve_mode
 
 logger = logging.getLogger("uvicorn.error")
 
 
 def create_app(mode: str | None = None, predictor=None) -> FastAPI:
-    selected_mode = mode or os.getenv("SPEEDMAP_MODE", "demo")
-    if selected_mode not in {"demo", "model"}:
-        raise ValueError("SPEEDMAP_MODE must be 'demo' or 'model'.")
+    selected_mode = resolve_mode(
+        mode or os.getenv("SPEEDMAP_MODE", "actual"), config.ARTIFACTS_MODELS,
+        os.getenv("SPEEDMAP_MODEL_NAME", "hybrid"), os.getenv("SPEEDMAP_MODEL_RUN"),
+    )
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -29,6 +31,10 @@ def create_app(mode: str | None = None, predictor=None) -> FastAPI:
                     from backend.demo import DemoPredictor
 
                     app.state.predictor = DemoPredictor()
+                elif selected_mode == "data":
+                    from speedmap.inference.data_predictor import DataPredictor
+
+                    app.state.predictor = DataPredictor()
                 else:
                     from speedmap.inference.predictor import Predictor
 
@@ -70,7 +76,7 @@ def create_app(mode: str | None = None, predictor=None) -> FastAPI:
     def get_predictor():
         service = app.state.predictor
         if service is None:
-            raise HTTPException(503, "Prediction service unavailable. Check the backend logs and model setup.")
+            raise HTTPException(503, "Prediction service unavailable. Check the backend logs, data files and model setup.")
         return service
 
     @app.get("/api/health", response_model=HealthResponse)
@@ -84,6 +90,9 @@ def create_app(mode: str | None = None, predictor=None) -> FastAPI:
             "model_version": getattr(service, "version", None),
             "tower_count": len(service.tower_list()) if service is not None else 0,
             "tower_data_source": getattr(service, "tower_data_source", "dataset") if service is not None else None,
+            "observation_count": getattr(service, "observation_count", None),
+            "data_period": getattr(service, "data_period", None),
+            "data_fingerprints": getattr(service, "data_fingerprints", {}),
         }
 
     @app.get("/api/boundary")
