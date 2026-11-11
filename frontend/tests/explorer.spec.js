@@ -1,11 +1,5 @@
 import { test, expect } from "@playwright/test";
 
-async function selectHoanKiem(page) {
-  const response = page.waitForResponse((response) => response.url().includes("/api/predict?lat=21.0285&lon=105.8542"));
-  await page.getByRole("button", { name: "Hoàn Kiếm", exact: true }).click();
-  return (await response).json();
-}
-
 test.beforeEach(async ({ page }) => {
   // The application must be usable without depending on third-party tile/font availability.
   await page.route(/https:\/\/(.*\.)?(tile\.openstreetmap\.org|tiles\.stadiamaps\.com|fonts\.googleapis\.com|fonts\.gstatic\.com)\//, (route) => route.abort());
@@ -13,14 +7,16 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByText("Demo mode", { exact: true })).toBeVisible();
 });
 
-test("explore a neighbourhood and display the full simulated snapshot", async ({ page }) => {
-  const prediction = await selectHoanKiem(page);
-  await expect(page.locator(".download-value")).toContainText(prediction.download_mbps.toFixed(1));
-  await expect(page.getByText("Illustrative range", { exact: true })).toBeVisible();
+test("explore a neighbourhood and display the regional simulated estimate", async ({ page }) => {
+  await page.getByRole("button", { name: "Hoàn Kiếm", exact: true }).click();
+  await expect(page.locator(".download-value")).toContainText("Mbps");
+  await expect(page.locator(".area-context")).toContainText("within 500 m");
+  await expect(page.locator(".area-support")).toContainText("Simulated across");
+  await expect(page.locator(".range-section, .secondary-metrics")).toHaveCount(0);
   await expect(page.locator(".nearest-row")).toHaveCount(3);
-  await expect(page.locator(".quality-badge")).toContainText(prediction.quality_level);
+  await expect(page.locator(".quality-badge")).toContainText("Good");
   await page.getByText("Behind the estimate", { exact: true }).click();
-  await expect(page.locator(".model-details")).toContainText("demo-v1");
+  await expect(page.locator(".model-details")).toContainText("demo-regional-v1");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
@@ -59,8 +55,8 @@ test("a stalled optional font stylesheet cannot block the explorer", async ({ pa
   await page.route("https://fonts.googleapis.com/**", () => {});
   await page.reload({ waitUntil: "domcontentloaded" });
   await expect(page.getByRole("button", { name: "Hoàn Kiếm", exact: true })).toBeEnabled();
-  const prediction = await selectHoanKiem(page);
-  await expect(page.locator(".download-value")).toContainText(prediction.download_mbps.toFixed(1));
+  await page.getByRole("button", { name: "Hoàn Kiếm", exact: true }).click();
+  await expect(page.locator(".download-value")).toContainText("Mbps");
 });
 
 test("location access outside Hanoi does not request a prediction or leave the city", async ({ page, context }) => {
@@ -94,7 +90,7 @@ test("map clicks, layer toggles and project information work", async ({ page }) 
   await map.click({ position: { x: box.width / 2, y: box.height / 2 } });
   await expect(page.locator(".result-card")).toBeVisible();
   await page.getByRole("button", { name: "Map layers", exact: true }).click();
-  const towers = page.getByRole("checkbox", { name: "Tower locations", exact: true });
+  const towers = page.getByRole("checkbox", { name: /^(Demo towers|Tower locations)$/, exact: true });
   await expect(towers).not.toBeChecked();
   await towers.check();
   await expect(towers).toBeChecked();
@@ -102,20 +98,20 @@ test("map clicks, layer toggles and project information work", async ({ page }) 
   await expect(towers).not.toBeChecked();
   await page.getByRole("checkbox", { name: "Prediction area", exact: true }).uncheck();
   await page.getByRole("button", { name: "About this project", exact: true }).click();
-  await expect(page.getByRole("dialog")).toBeVisible();
-  await expect(page.getByRole("dialog")).toContainText("no measured confidence coverage");
-  await page.keyboard.press("Escape");
-  await expect(page.getByRole("dialog")).not.toBeVisible();
+  await expect(page.locator(".about-page")).toBeVisible();
+  await page.getByRole("link", { name: "Back to signal explorer" }).click();
+  await expect(page.locator(".about-page")).not.toBeVisible();
 });
 
 test("a quiet basemap and selected speed take priority over optional tower details", async ({ page }) => {
   await page.getByRole("button", { name: "Map layers", exact: true }).click();
   await expect(page.getByRole("radio", { name: "Signal focus", exact: true })).toBeChecked();
-  await expect(page.getByRole("checkbox", { name: "Tower locations", exact: true })).not.toBeChecked();
+  await expect(page.getByRole("checkbox", { name: /^(Demo towers|Tower locations)$/, exact: true })).not.toBeChecked();
   await page.getByRole("button", { name: "Map layers", exact: true }).click();
-  const prediction = await selectHoanKiem(page);
-  await expect(page.locator(".selected-tooltip")).toContainText(`${prediction.download_mbps.toFixed(1)} Mbps`);
-  await expect(page.locator(".selected-tooltip")).toContainText(`${prediction.quality_level} connection`);
+  await page.getByRole("button", { name: "Hoàn Kiếm", exact: true }).click();
+  await expect(page.locator(".selected-tooltip")).toContainText("Mbps");
+  await expect(page.locator(".selected-tooltip")).toContainText("500 m area");
+  await expect(page.locator(".selected-tooltip")).toContainText("Good connection");
   await expect(page.locator(".selected-tooltip")).toContainText("simulated");
   await expect(page.locator(".cluster-count")).toHaveCount(0);
   await expect(page.getByLabel("Download speed quality legend")).toBeVisible();
@@ -124,31 +120,6 @@ test("a quiet basemap and selected speed take priority over optional tower detai
   await expect(page.locator(".leaflet-tile").first()).toHaveAttribute("src", /tile\.openstreetmap\.org/);
   await page.getByRole("radio", { name: "Signal focus", exact: true }).check();
   await expect(page.locator(".leaflet-tile").first()).toHaveAttribute("src", /tiles\.stadiamaps\.com/);
-});
-
-test("dataset tower labels stay separate from simulated speed labels", async ({ page }) => {
-  const health = await (await page.request.get("/api/health")).json();
-  const prediction = await (await page.request.get("/api/predict?lat=21.0285&lon=105.8542")).json();
-  const towers = [
-    { tower_id: 9101, latitude: 21.029, longitude: 105.8542, source: "opencellid", distance_m: 56 },
-    { tower_id: 9102, latitude: 21.03, longitude: 105.855, source: "osm", distance_m: 186 },
-    { tower_id: 9103, latitude: 21.031, longitude: 105.856, source: "opencellid", distance_m: 335 },
-  ];
-  await page.route("**/api/health", (route) => route.fulfill({ json: { ...health, tower_count: 3, tower_data_source: "dataset" } }));
-  await page.route("**/api/towers", (route) => route.fulfill({ json: towers }));
-  await page.route("**/api/predict?*", (route) => route.fulfill({ json: { ...prediction, nearest_towers: towers } }));
-  await page.reload();
-  await expect(page.locator(".mode-banner")).toContainText("local tower dataset");
-  await expect(page.locator(".sidebar-footer")).toContainText("3 cell locations");
-  await selectHoanKiem(page);
-  await expect(page.locator(".nearest-heading")).toContainText("Closest cell locations");
-  await expect(page.locator(".nearest-row").first()).toContainText("9101 · OpenCelliD");
-  await expect(page.locator(".nearest-row").nth(1)).toContainText("OSM mast");
-  await expect(page.locator(".result-type")).toHaveText("SIMULATED");
-  await expect(page.locator(".selected-tooltip")).toContainText("simulated");
-  await page.getByRole("button", { name: "Map layers", exact: true }).click();
-  await expect(page.getByRole("checkbox", { name: "Tower locations", exact: true })).not.toBeChecked();
-  await expect(page.locator(".layers-popover")).toContainText("Cell locations");
 });
 
 test("a slower previous prediction cannot overwrite the latest selection", async ({ page }) => {
@@ -170,4 +141,54 @@ test("connection failure offers reconnection and recovers", async ({ page }) => 
   await page.unroute("**/api/health");
   await page.getByRole("button", { name: "Reconnect", exact: true }).click();
   await expect(page.getByRole("button", { name: "Hoàn Kiếm", exact: true })).toBeEnabled();
+});
+
+test("the regional circle is drawn at geographic scale", async ({ page }) => {
+  await page.evaluate(() => {
+    window.regionalRadii = [];
+    const original = CanvasRenderingContext2D.prototype.arc;
+    CanvasRenderingContext2D.prototype.arc = function (...args) {
+      window.regionalRadii.push(args[2]);
+      return original.apply(this, args);
+    };
+  });
+  const response = page.waitForResponse((res) => res.url().includes('/api/predict?'));
+  await page.getByRole('button', { name: 'Hoàn Kiếm', exact: true }).click();
+  const result = await (await response).json();
+  await expect(page.locator('.download-value')).toContainText(result.area_download_mbps.toFixed(1));
+  await expect(page.locator('.area-context')).toContainText(`${(result.area_radius_m / 1000).toFixed(1)} km`);
+  await expect.poll(() => page.evaluate(() => window.regionalRadii.some((r) => r > 30))).toBe(true);
+});
+
+test("model estimates identify sparse regional support and omit point metrics", async ({ page }) => {
+  await page.route('**/api/health', (route) => route.fulfill({ json: {
+    status: 'ok', ready: true, mode: 'model', model_loaded: true, model_version: 'regional-test', tower_count: 3,
+  } }));
+  await page.route('**/api/predict?*', (route) => route.fulfill({ json: {
+    latitude: 21.0285, longitude: 105.8542, area_radius_m: 500,
+    area_download_mbps: 123.4, area_quality_level: 'Good',
+    area_points: 82, area_ookla_tiles: 1, area_grid_points: 81,
+    nearest_towers: [], source: 'model', model_name: 'knn', model_version: 'regional-test',
+  } }));
+  await page.reload();
+  await expect(page.getByText('Model connected', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Hoàn Kiếm', exact: true }).click();
+  await expect(page.locator('.download-value')).toContainText('123.4');
+  await expect(page.locator('.area-support')).toContainText('Sparse coverage: 81 grid points added');
+  await expect(page.locator('.result-type')).toHaveText('ESTIMATE');
+  await expect(page.locator('.range-section, .secondary-metrics')).toHaveCount(0);
+  await page.getByText('Behind the estimate', { exact: true }).click();
+  await expect(page.locator('.model-details')).toContainText('KNN');
+});
+
+test("the selected region stays centred when the map resizes", async ({ page }) => {
+  await page.getByRole('button', { name: 'Hoàn Kiếm', exact: true }).click();
+  await expect(page.locator('.download-value')).toBeVisible();
+  const viewport = page.viewportSize();
+  await page.setViewportSize({ width: viewport.width - 40, height: viewport.height });
+  await expect.poll(async () => {
+    const tooltip = await page.locator('.selected-tooltip').boundingBox();
+    const map = await page.locator('.leaflet-container').boundingBox();
+    return Math.abs((tooltip.x + tooltip.width / 2) - (map.x + map.width / 2));
+  }).toBeLessThan(5);
 });

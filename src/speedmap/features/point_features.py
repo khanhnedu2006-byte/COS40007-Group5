@@ -30,7 +30,9 @@ def center_km(lat, lon) -> np.ndarray:
 
 
 class PointFeaturizer:
-    def __init__(self, towers: pd.DataFrame, cells: pd.DataFrame, tiles: pd.DataFrame, context=None):
+    def __init__(self, towers: pd.DataFrame, cells: pd.DataFrame, tiles: pd.DataFrame,
+                 context=None, *, include_physics: bool = True):
+        self.include_physics = include_physics
         self.tower_index = TowerIndex(towers)
         self.cells = cells.reset_index(drop=True)
         self.cell_tree = BallTree(_radians(self.cells["latitude"], self.cells["longitude"]), metric="haversine")
@@ -69,7 +71,8 @@ class PointFeaturizer:
         lat = np.atleast_1d(np.asarray(lat, dtype=float))
         lon = np.atleast_1d(np.asarray(lon, dtype=float))
         feats = pd.concat(
-            [tower_features(lat, lon, self.tower_index), self._infra(lat, lon), self._activity(lat, lon),
+            [tower_features(lat, lon, self.tower_index, include_physics=self.include_physics),
+             self._infra(lat, lon), self._activity(lat, lon),
              context_features(lat, lon, self.context)], axis=1
         )
         return feats[config.FEATURE_COLUMNS]

@@ -98,13 +98,18 @@ def test_missing_real_model_is_reported_instead_of_using_demo(tmp_path):
 
 def test_explicit_model_run_does_not_need_latest_pointer(tmp_path):
     root = tmp_path / "School project with spaces"
-    run = root / "artifacts" / "models" / "hybrid" / "approved-run"
+    run = root / "artifacts" / "models" / "regional" / "approved-run"
     run.mkdir(parents=True)
     (run / "model.joblib").touch()
     (run / "metadata.json").write_text("{}")
     towers = root / "data" / "interim" / "hanoi_towers.csv"
     towers.parent.mkdir(parents=True)
     towers.touch()
+    for relative in ["data/interim/hanoi_cells.csv", "data/processed/hanoi_tiles.csv",
+                     "data/reference/hanoi_context_grid.npz"]:
+        path = root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.touch()
     launch.require_model(root, {"SPEEDMAP_MODEL_RUN": "approved-run"})
     towers.unlink()
     with pytest.raises(RuntimeError, match="hanoi_towers.csv"):

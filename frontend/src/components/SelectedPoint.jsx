@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { CircleMarker, Polyline, Tooltip } from "react-leaflet";
+import { Circle, CircleMarker, Polyline, Tooltip } from "react-leaflet";
 import { QUALITY } from "./Legend.jsx";
 
 export function formatDistance(metres) {
@@ -8,8 +8,10 @@ export function formatDistance(metres) {
 
 const SelectedPoint = memo(function SelectedPoint({ result, selected, showTowers }) {
   const point = [selected.lat, selected.lon];
-  const color = QUALITY.find((quality) => quality.name === result?.quality_level)?.color || "#087f73";
+  const color = QUALITY.find((quality) => quality.name === result?.area_quality_level)?.color || "#087f73";
   return <>
+    {result && <Circle center={point} radius={result.area_radius_m} interactive={false}
+      pathOptions={{ className: "regional-radius", color, weight: 2, dashArray: "6 5", fillColor: color, fillOpacity: 0.08 }} />}
     {showTowers && result?.nearest_towers.map((tower, i) => <Polyline key={tower.tower_id}
       positions={[point, [tower.latitude, tower.longitude]]}
       pathOptions={{ color: "#087f73", weight: i === 0 ? 2 : 1.5, dashArray: "5 7", opacity: 0.7 }}>
@@ -25,7 +27,7 @@ const SelectedPoint = memo(function SelectedPoint({ result, selected, showTowers
     <CircleMarker center={point} radius={9}
       pathOptions={{ color: "#fff", weight: 3, fillColor: color, fillOpacity: 1 }}>
       <Tooltip direction="top" offset={[0, -10]} permanent className="selected-tooltip">
-        {result ? <div className="map-signal-reading" style={{ color }}><strong>{result.download_mbps.toFixed(1)} <small>Mbps</small></strong><span>{result.quality_level} connection · {result.source === "demo" ? "simulated" : result.source === "data" ? "data estimate" : "model estimate"}</span></div> : selected.name}
+        {result?.area_download_mbps != null ? <div className="map-signal-reading" style={{ color }}><strong>{result.area_download_mbps.toFixed(1)} <small>Mbps</small></strong><span>{result.area_quality_level} connection · {formatDistance(result.area_radius_m)} area · {result.source === "demo" ? "simulated" : result.source === "data" ? "data estimate" : "model estimate"}</span></div> : selected.name}
       </Tooltip>
     </CircleMarker>
   </>;

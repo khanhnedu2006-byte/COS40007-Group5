@@ -30,8 +30,8 @@ def test_dataset_locations_ids_and_sources_are_used_without_modifying_file(tower
     assert [tower["tower_id"] for tower in towers] == [901, 902, 903]
     assert towers[1]["source"] == "osm"
     result = predictor.predict(21.0285, 105.8542)
-    assert result["source"] == "demo" and result["confidence_level"] is None
-    assert result["interval_kind"] == "illustrative"
+    assert result["source"] == "demo" and result["model_name"] == "simulated"
+    assert result["area_radius_m"] == 500
     assert [tower["tower_id"] for tower in result["nearest_towers"]] == [901, 902, 903]
     # 0.0001 degrees of longitude at Hanoi's latitude is approximately 10.4 metres.
     assert result["nearest_towers"][0]["distance_m"] == pytest.approx(10, abs=1)
@@ -44,7 +44,7 @@ def test_missing_file_keeps_data_free_demo_available(tmp_path):
     predictor = DemoPredictor(path)
     assert predictor.tower_data_source == "simulated"
     assert all(tower["source"] == "simulated" for tower in predictor.tower_list())
-    assert predictor.predict(21.0285, 105.8542)["download_mbps"] == 141.9
+    assert predictor.predict(21.0285, 105.8542)["area_download_mbps"] == 141.4
     assert not path.exists()
 
 

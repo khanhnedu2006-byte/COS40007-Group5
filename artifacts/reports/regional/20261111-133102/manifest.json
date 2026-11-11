@@ -1,0 +1,38 @@
+{
+  "run_id": "20261111-133102",
+  "selected_model": "knn",
+  "input_sha256": {
+    "data/raw/ookla_hanoi_mobile.csv": "e884cedae96abe99fff7e6e4e2cb9acbaf7d1062da5cf900f4bfc28fc6f318de",
+    "data/raw/452.csv.gz": "7777d766d3f03489d16d3cc0a54e523e60c8ccd2a0a57e9d8d1e22db687eaea0",
+    "data/raw/osm_comm_towers.csv": "1af6cfcd9ad79307fbc4e6151e621a7270066258db5a30f9c57f5c54f29c7108",
+    "data/processed/hanoi_tiles.csv": "d2bcd787c80fe4eb3c5bcb5d6e7fd8ffd8cc12f82f1aa786f7eb49ae129bd36d",
+    "data/interim/hanoi_towers.csv": "0bbeb8b54a26514101f7c667df4a652b5d10e0212613c4f83a72b2d24bfa54d1",
+    "data/interim/hanoi_cells.csv": "dcdf57b4ad73cbea733df66c77114daf8e5776d122451adc34b14e3fc5f95d81",
+    "data/reference/hanoi_boundary.geojson": "738305f72192a0baa20823a6fe1aae853d0fa756b85b52b77c45f0e5be0bbd21",
+    "data/reference/hanoi_context_grid.npz": "9d0fdcedbcc4745e5940c7596700660c6a47cd53e4316919d99fc3009a15a219"
+  },
+  "sklearn_version": "1.9.1",
+  "training_rows": 5212,
+  "pool_quarters": 4,
+  "first_quarter": "2025-4",
+  "last_quarter": "2026-3",
+  "cv_folds": 5,
+  "spatial_block_km": 2.0,
+  "area_radius_m": 1500,
+  "area_min_tests": 30,
+  "model_settings": {
+    "knn": {
+      "n_neighbors": 10,
+      "weights": "uniform",
+      "metric": "haversine"
+    },
+    "random_forest": {
+      "n_estimators": 300,
+      "min_samples_leaf": 5,
+      "random_state": 42,
+      "context_imputation": "training median; all-empty columns use zero"
+    }
+  },
+  "selection": "lowest area MAE, then highest area level accuracy, then KNN",
+  "evaluation": "spatial out-of-fold; model-selection estimate, not independent holdout"
+}

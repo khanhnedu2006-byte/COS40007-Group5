@@ -1,10 +1,10 @@
 import { memo, useEffect, useMemo, useRef } from "react";
-import { Circle, GeoJSON, MapContainer, Polygon, ScaleControl, TileLayer, Tooltip, useMap, useMapEvents } from "react-leaflet";
+import { GeoJSON, MapContainer, Polygon, ScaleControl, TileLayer, useMap, useMapEvents } from "react-leaflet";
 import { HANOI_BOUNDS, HANOI_CENTER } from "../hanoi.js";
 import { BASEMAPS } from "../basemaps.js";
 import ClickHandler from "./ClickHandler.jsx";
 import TowerLayer from "./TowerLayer.jsx";
-import SelectedPoint, { formatDistance } from "./SelectedPoint.jsx";
+import SelectedPoint from "./SelectedPoint.jsx";
 
 const BOUNDARY_STYLE = { color: "#468b7b", weight: 2, dashArray: "6 6", fill: false };
 const MASK_STYLE = { stroke: false, fillColor: "#edf0e9", fillOpacity: 0.76, fillRule: "evenodd" };
@@ -25,7 +25,7 @@ function MapActions({ navigation, mapRef, area, onZoomChange }) {
       width = nextWidth;
       height = nextHeight;
       cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => map.invalidateSize({ pan: false, debounceMoveend: true }));
+      frame = requestAnimationFrame(() => map.invalidateSize({ pan: true, debounceMoveend: true }));
     });
     observer.observe(container);
     return () => { observer.disconnect(); cancelAnimationFrame(frame); mapRef.current = null; };
@@ -63,12 +63,7 @@ const MapScene = memo(function MapScene({ towers, boundary, area, showTowers, sh
     {area && <Polygon positions={area.mask} interactive={false} pathOptions={MASK_STYLE} />}
     {showBoundary && boundary && <GeoJSON data={boundary} interactive={false} style={BOUNDARY_STYLE} />}
     {showTowers && <TowerLayer towers={towers} />}
-    {result && selected && !selected.outside && <Circle
-      center={[result.latitude, result.longitude]} radius={result.area_radius_m ?? 500}
-      pathOptions={{ color: "#167665", weight: 2, dashArray: "7 5", fillColor: "#167665", fillOpacity: 0.09 }}
-      bubblingMouseEvents={false}>
-      <Tooltip sticky>{formatDistance(result.area_radius_m ?? 500)} radius around this point</Tooltip>
-    </Circle>}
+
     {selected && !selected.outside && <SelectedPoint result={result} selected={selected} showTowers={showTowers} />}
     <ScaleControl position="bottomleft" imperial={false} />
   </MapContainer>;
