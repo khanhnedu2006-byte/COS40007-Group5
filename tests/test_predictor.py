@@ -2,7 +2,9 @@
 import numpy as np
 import pandas as pd
 import pytest
+from fastapi.testclient import TestClient
 
+from backend.main import create_app
 from backend.schemas import PredictionResponse
 from speedmap import artifacts, config
 from speedmap.inference.predictor import Predictor
@@ -66,6 +68,22 @@ def test_unfinished_physics_fails_readiness(saved_model, monkeypatch):
     monkeypatch.setattr("speedmap.features.tower_features.theoretical_speed_mbps", lambda distances: np.nan)
     with pytest.raises(ValueError, match="non-finite"):
         Predictor("test_hybrid")
+
+
+def test_official_model_api_exposes_area_estimate(saved_model, monkeypatch):
+    monkeypatch.setenv("SPEEDMAP_MODEL_NAME", "test_hybrid")
+    monkeypatch.delenv("SPEEDMAP_MODEL_RUN", raising=False)
+    predictor = Predictor("test_hybrid", saved_model.name)
+    with TestClient(create_app("actual", predictor)) as client:
+        assert client.get("/api/health").json()["mode"] == "model"
+        response = client.get("/api/predict?lat=21.0285&lon=105.8542")
+        assert response.status_code == 200
+        result = response.json()
+        assert result["source"] == "model"
+        assert result["area_radius_m"] == 1500
+        assert result["area_download_mbps"] == 133
+        assert result["area_quality_level"] == config.quality_level(133)
+        assert result["area_points"] > 1
 
 
 def test_incompatible_feature_contract_is_rejected(saved_model):

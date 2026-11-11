@@ -10,7 +10,7 @@ Built for **COS40007 — Artificial Intelligence Engineering** at Swinburne Univ
 
 **Windows quick launch:** double-click **[demo.bat](demo.bat)** for simulated predictions or **[start.bat](start.bat)** for the current Hanoi data and, when available, the saved hybrid model. Install Python and Node.js first; the launchers handle project dependencies and open the browser.
 
-[Double-click launch](#double-click-on-windows) · [Manual setup](#before-you-start) · [Docker](#run-with-docker) · [Model integration](#connect-the-trained-model) · [Development checks](#development-checks) · [Documentation](#documentation)
+[Double-click launch](#double-click-on-windows) · [Linux installation](#linux-installation) ? [Manual setup](#before-you-start) · [Docker](#run-with-docker) · [Model integration](#connect-the-trained-model) · [Development checks](#development-checks) · [Documentation](#documentation)
 
 ## What you can explore
 
@@ -37,6 +37,8 @@ If Windows hides file extensions, the launchers appear as **demo** and **start**
 | **[demo.bat](demo.bat)** | The website with simulated predictions. No dataset or model required. |
 | **[start.bat](start.bat)** | The website using current Ookla measurements and tower data; selects a saved hybrid model when available. |
 
+The official run includes the **1.5 km prediction radius circle** and area summary in both recorded-data and model modes, using the same frontend as the demo.
+
 **Required data for `start.bat`:** keep `data/interim/hanoi_towers.csv` and `data/processed/hanoi_tiles.csv` in place. The training pipeline uses `data/processed/hanoi_train.csv` (24,679 tile-quarter rows). These local data folders are excluded from Git, so copy them when moving to another computer. Restart the backend after replacing data. Tower markers stay optional under **Layers > Cell locations**.
 
 Double-click the launcher you want. It uses this computer's Python installation and prints the selected version. On the first run, it creates `.venv/` and installs dependencies automatically; this needs internet access. A copied, broken or incompatible `.venv/` is preserved as `.venv.backup-<timestamp>/` and replaced with a fresh environment. Later runs skip installation unless the Python runtime, project location, requirements or frontend dependencies change. The browser opens at **http://127.0.0.1:5173** when both services are ready.
@@ -44,6 +46,132 @@ Double-click the launcher you want. It uses this computer's Python installation 
 Keep the launcher window open while using the website. Press **Enter** there to stop the services it started. If the same mode is already running, the launcher reopens it. Close the existing launcher or manually started servers before switching modes. Startup logs are saved under `.run/`.
 
 `start.bat` uses `actual` mode: recorded data when no model is registered, or the saved `hybrid` bundle selected by `LATEST` / `SPEEDMAP_MODEL_RUN`. It does not train a model. Missing required data or an invalid registered model produces an error; it never substitutes simulated predictions. See [model integration](#connect-the-trained-model) for model requirements. To force recorded estimates, run `python scripts/launch.py data`; to require a trained model, use `python scripts/launch.py model`.
+
+### Linux installation
+
+These steps use **Bash on Ubuntu 24.04 or a newer Ubuntu release**. Other distributions can use their package manager for the same tools. Use **64-bit Python 3.11+** and **Node.js 22.13+ in the Node 22 line**. No GPU or training dependencies are needed to run recorded-data mode.
+
+#### 1. Install system tools
+
+```bash
+sudo apt update
+sudo apt install -y git curl ca-certificates python3 python3-venv python3-pip
+python3 --version
+```
+
+If your distribution supplies Python older than 3.11, install a supported Python version first and use that interpreter in place of `python3` below. Keep Python packages inside the project's virtual environment; do not use `sudo pip`.
+
+For Node.js, install **nvm** using its [official installation instructions](https://github.com/nvm-sh/nvm#installing-and-updating), then reopen your terminal. With nvm available:
+
+```bash
+nvm install 22
+nvm use 22
+node --version
+npm --version
+```
+
+If Node 22.13+ and npm are already available, skip this step. In a new terminal, use `nvm use 22` if another Node version is selected. See also [Ubuntu's Python setup guide](https://documentation.ubuntu.com/ubuntu-for-developers/tutorials/python-use/) and [npm's installation guide](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm/).
+
+#### 2. Get the source and local data
+
+```bash
+git clone --branch ai/minh https://github.com/khanhnedu2006-byte/COS40007-Group5.git
+cd COS40007-Group5
+```
+
+If you already have this checkout, use that folder instead. Run the remaining commands from the repository root unless a step explicitly changes directories.
+
+**Cloning alone does not install the official dataset.** Obtain the team's matching data files and copy them into these paths, keeping the names and capitalization:
+
+| Path | When needed |
+| --- | --- |
+| `data/interim/hanoi_towers.csv` | Official recorded-data and model runs |
+| `data/processed/hanoi_tiles.csv` | Official recorded-data and model runs |
+| `data/interim/hanoi_cells.csv` | Trained model's shared feature pipeline |
+| `data/reference/hanoi_context_grid.npz` | Model context features, when present in the trained setup |
+| `data/processed/hanoi_train.csv` | Training, and matching model provenance when recorded in its metadata |
+| `artifacts/models/hybrid/LATEST` and its referenced run folder | Automatic selection of a trained model |
+
+The boundary at `data/reference/hanoi_boundary.geojson` is included in the repository. A model run folder contains `model.joblib` and `metadata.json`; bring any matching inputs recorded in that metadata too. Copy the team's data/model folders, but **create a new Linux environment** rather than copying Windows `.venv/`, `frontend/node_modules/` or `.run/` folders.
+
+Check the minimum recorded-data files:
+
+```bash
+ls -lh data/interim/hanoi_towers.csv data/processed/hanoi_tiles.csv
+```
+
+Without these files you can run the separate simulated demo, but official startup will report missing data.
+
+#### 3. Start the official application automatically
+
+```bash
+python3 scripts/launch.py actual
+```
+
+This is the Linux equivalent of Windows **`start.bat`**. The launcher creates `.venv/`, installs runtime and frontend dependencies, starts both services, and opens **http://127.0.0.1:5173**. The first run needs internet access. Keep the terminal open and press **Enter** to stop the services it started. Use `--no-browser` if browser opening is unavailable, then open the address yourself.
+
+`actual` chooses recorded-data mode when there is no registered model, or loads the selected model when one is registered. An invalid registered model fails explicitly; it does not silently switch to recorded or simulated results.
+
+Other startup choices:
+
+```bash
+python3 scripts/launch.py data   # Require recorded Ookla estimates
+python3 scripts/launch.py model  # Require the saved trained model
+python3 scripts/launch.py demo   # Simulated speeds; can run without the local dataset
+```
+
+After selecting a location, official runs show the **1.5 km radius circle** and an area summary. Recorded-data mode averages the tiles inside the circle using their test counts; if none are present, it reports that an area average is unavailable. Model mode uses the shared model area sampler. The point estimate remains separate from the area estimate. Demo mode shows the circle but does not calculate an area average.
+
+#### 4. Manual installation and startup (alternative)
+
+Use this if you want to manage the two processes yourself. Skip automatic startup above, or stop it first.
+
+```bash
+# Repository root: one-time backend setup
+python3 -m venv .venv
+.venv/bin/python -m pip install --upgrade pip
+.venv/bin/python -m pip install -r requirements-app.txt
+.venv/bin/python -m pip install -e . --no-deps
+
+# Also run this if using a trained hybrid bundle:
+# .venv/bin/python -m pip install -r requirements-model.txt
+
+# Start the official API; leave this terminal running
+SPEEDMAP_MODE=actual .venv/bin/python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
+```
+
+In a **second terminal**, enter the same checkout and start the frontend:
+
+```bash
+cd frontend
+npm ci
+npm run dev -- --host 127.0.0.1
+```
+
+Open **http://127.0.0.1:5173**. Stop both manually started processes with **Ctrl+C** in their respective terminals. On later runs, skip environment creation and dependency installation unless requirements or the frontend lockfile changed. A trained model may require additional estimator dependencies listed by the model team.
+
+#### 5. Verify the run and troubleshoot
+
+From a third terminal:
+
+```bash
+curl -fsS http://127.0.0.1:8000/api/health
+curl -fsS 'http://127.0.0.1:8000/api/predict?lat=21.0285&lon=105.8542'
+```
+
+Health should contain `"ready": true` and mode `data` or `model`. Prediction output should include `"area_radius_m": 1500`; `area_download_mbps` is populated when an area estimate is available. The website header shows **Data estimates** or **Model connected**. Select a location to see the outlined radius and the area summary.
+
+| Symptom | What to check |
+| --- | --- |
+| `ensurepip` or `venv` missing | Install `python3-venv` for the selected Python version, then retry environment creation. |
+| `externally-managed-environment` | Install with `.venv/bin/python -m pip`, rather than system `pip`. |
+| `node` / `npm` not found, or unsupported Node | Open a new terminal after installing nvm, run `nvm use 22`, and check both versions. |
+| Missing data or service not ready | Verify file paths/capitalization and inspect `.run/` logs for launcher runs or the API terminal for manual runs. |
+| Model data differs / missing provenance | Obtain a compatible retrained model and its matching input files; use explicit `data` mode if you want recorded estimates instead. |
+| Shared physics not implemented | Model mode requires the team's completed physics code. Recorded-data mode can run independently. |
+| Address already in use | Stop the existing launcher or servers on ports 8000 and 5173 before restarting or changing modes. |
+| Browser does not open | Open http://127.0.0.1:5173 manually; `--no-browser` suppresses automatic opening. |
+| Map background is blank | Check internet access or select **Layers > Detailed streets**; local estimates still work. |
 
 ### Before you start
 
