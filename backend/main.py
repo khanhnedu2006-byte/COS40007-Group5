@@ -111,7 +111,11 @@ def create_app(mode: str | None = None, predictor=None) -> FastAPI:
         if not config.inside_hanoi(lat, lon):
             raise HTTPException(422, "This point is outside Hanoi. Choose a location inside the city boundary.")
         try:
-            result = PredictionResponse.model_validate(get_predictor().predict(lat, lon))
+            service = get_predictor()
+            payload = service.predict(lat, lon)
+            if hasattr(service, "predict_area"):
+                payload.update(service.predict_area(lat, lon))
+            result = PredictionResponse.model_validate(payload)
         except HTTPException:
             raise
         except Exception as exc:

@@ -31,6 +31,8 @@ def test_inside_points_return_consistent_complete_predictions(client, lat, lon):
     assert result == client.get("/api/predict", params={"lat": lat, "lon": lon}).json()
     assert result["source"] == "demo" and result["interval_kind"] == "illustrative"
     assert result["confidence_level"] is None
+    assert result["area_radius_m"] == 1500
+    assert result["area_download_mbps"] is None
     assert result["download_low"] <= result["download_mbps"] <= result["download_high"]
     distances = [tower["distance_m"] for tower in result["nearest_towers"]]
     assert len(distances) == 3 and distances == sorted(distances)

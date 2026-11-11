@@ -3,6 +3,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from speedmap import config
+
 
 class Tower(BaseModel):
     tower_id: int | str
@@ -52,6 +54,11 @@ class PredictionResponse(BaseModel):
     interval_kind: Literal["illustrative", "conformal", "neighbour_spread"]
     confidence_level: float | None = Field(default=None, gt=0, lt=1, allow_inf_nan=False)
     data_support: DataSupport | None = None
+    area_radius_m: float = Field(default=config.AREA_RADIUS_M, gt=0, allow_inf_nan=False)
+    area_download_mbps: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+    area_quality_level: Literal["Poor", "Fair", "Good", "Excellent"] | None = None
+    area_points: int | None = Field(default=None, ge=1)
+    area_ookla_tiles: int | None = Field(default=None, ge=0)
 
     @model_validator(mode="after")
     def ordered_interval(self):

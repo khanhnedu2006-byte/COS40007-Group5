@@ -10,6 +10,7 @@ from speedmap.data.catalog import (
     load_tower_table,
 )
 from speedmap.features.spatial import EARTH_RADIUS_M, TowerIndex
+from speedmap.inference.area import weighted_log_mean
 
 
 class DataPredictor:
@@ -27,6 +28,21 @@ class DataPredictor:
 
     def tower_list(self):
         return self.towers.to_dict(orient="records")
+
+    def predict_area(self, lat, lon):
+        indices = self.tile_index.query_radius(
+            np.radians([[lat, lon]]), r=config.AREA_RADIUS_M / EARTH_RADIUS_M,
+        )[0]
+        if not len(indices):
+            return {}  # No recorded area estimate when the circle has no observations.
+        tiles = self.tiles.iloc[indices]
+        value = weighted_log_mean(tiles["download_mbps"], tiles["tests"])
+        return {
+            "area_radius_m": config.AREA_RADIUS_M,
+            "area_download_mbps": round(value, 1),
+            "area_quality_level": config.quality_level(value),
+            "area_points": len(tiles), "area_ookla_tiles": len(tiles),
+        }
 
     def predict(self, lat, lon):
         distance, indices = self.tile_index.query(np.radians([[lat, lon]]), k=min(5, len(self.tiles)))

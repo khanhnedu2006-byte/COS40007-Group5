@@ -38,6 +38,14 @@ export default function ResultPanel({ result, error, loading, selected, onRetry 
       <div className="download-value">{result.download_mbps.toFixed(1)}<span>Mbps</span></div>
       <div className={`quality-badge quality-${result.quality_level.toLowerCase()}`}><span />{result.quality_level} connection</div>
       <p className="quality-description">{descriptions[result.quality_level]}</p>
+      <section className="area-estimate" aria-label="Area estimate">
+        <h3>The area around this point</h3>
+        <p>{((result.area_radius_m ?? 1500) / 1000).toLocaleString()} km radius · outlined on the map</p>
+        {result.area_download_mbps != null ? <>
+          <strong>{result.area_download_mbps.toFixed(1)} Mbps <span>· {result.area_quality_level}</span></strong>
+          <p>{dataMode ? "Recorded download average" : "Predicted typical download"} across {result.area_points} {dataMode ? "tiles" : "sample points"}.</p>
+        </> : <p>{demo ? "The circle shows the area around this simulated point; no area average is calculated in demo mode." : "No recorded tiles inside this radius. The point estimate above uses nearby data."}</p>}
+      </section>
       <div className="range-section">
         <div><span>{demo ? "Illustrative range" : dataMode ? "Nearby measured range" : `${Math.round(result.confidence_level * 100)}% prediction range`}</span><strong>{result.download_low.toFixed(0)}–{result.download_high.toFixed(0)} <small>Mbps</small></strong></div>
         <div className="range-track"><span className="range-fill" style={{ left: `${lowPosition}%`, width: `${100 - lowPosition}%` }} /><span className="range-point" style={{ left: `${Math.min(pointPosition, 98)}%` }} /></div>
