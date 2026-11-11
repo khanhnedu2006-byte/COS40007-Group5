@@ -1,17 +1,26 @@
-"""Adapter for the model team's saved bundle and shared feature pipeline."""
+"""Adapter for the model team's saved bundle and shared feature pipeline.
+
+Features are computed with speedmap.features.point_features.PointFeaturizer, exactly as in training,
+from hanoi_towers.csv, hanoi_cells.csv, hanoi_tiles.csv and data/reference/hanoi_context_grid.npz.
+"""
 import numpy as np
+import pandas as pd
 
 from speedmap import config
 from speedmap.artifacts import load_model
-from speedmap.data.towers import load_towers
-from speedmap.features.spatial import TowerIndex
-from speedmap.features.tower_features import tower_features
+from speedmap.data.towers import load_cells, load_towers
+from speedmap.features.point_features import PointFeaturizer
+from speedmap.inference.area import AreaSampler, area_estimate
+
+
+def load_tiles() -> pd.DataFrame:
+    return pd.read_csv(config.TILES_FILE, dtype={"quadkey": str})
 
 
 class Predictor:
     def __init__(self, model_name: str = "hybrid", run_id: str | None = None):
         self.bundle, self.metadata = load_model(model_name, run_id)
-        required = {"model", "conformal", "secondary", "latest_quarter_index"}
+        required = {"model", "conformal", "secondary"}
         if not isinstance(self.bundle, dict) or not required.issubset(self.bundle):
             raise ValueError(f"Saved bundle must include {sorted(required)}.")
         if not set(config.SECONDARY_TARGETS).issubset(self.bundle["secondary"]):
@@ -27,15 +36,18 @@ class Predictor:
             raise ValueError("Tower coordinates must be finite.")
         if "source" not in self.towers:
             self.towers = self.towers.assign(source="estimated")
-        self.index = TowerIndex(self.towers)
+        tiles = load_tiles()
+        self.featurizer = PointFeaturizer(self.towers, load_cells(), tiles)
+        self.area_sampler = AreaSampler(tiles)
+        self.index = self.featurizer.tower_index
         self.version = str(self.metadata["run_id"])
         self.predict(*config.HANOI_CENTER)
 
     def predict(self, lat: float, lon: float) -> dict:
-        features = tower_features(np.array([lat]), np.array([lon]), self.index)
-        features["quarter_index"] = self.bundle["latest_quarter_index"]
-        features = features[self.columns]
-        if not np.isfinite(features.to_numpy(dtype=float)).all():
+        features = self.featurizer.features([lat], [lon])[self.columns]
+        # Bối cảnh (dân số, đất...) được phép trống, model xử lý được; các đặc trưng còn lại phải hữu hạn
+        must_be_finite = [c for c in self.columns if c not in config.CONTEXT_FEATURES]
+        if not np.isfinite(features[must_be_finite].to_numpy(dtype=float)).all():
             raise ValueError("Shared features contain non-finite values; check the physics implementation.")
         download = float(np.asarray(self.bundle["model"].predict(features)).reshape(-1)[0])
         low, high = self.bundle["conformal"].interval(np.array([download]))
@@ -64,6 +76,10 @@ class Predictor:
         if not result["download_low"] <= download <= result["download_high"]:
             raise ValueError("Conformal range must contain the estimate.")
         return result
+
+    def predict_area(self, lat: float, lon: float) -> dict:
+        """Typical download speed within config.AREA_RADIUS_M (1.5 km) of the point (more reliable than one point)."""
+        return area_estimate(self.bundle["model"].predict, self.featurizer, self.area_sampler, lat, lon, self.columns)
 
     def tower_list(self) -> list:
         return self.towers[["tower_id", "latitude", "longitude", "source"]].to_dict(orient="records")

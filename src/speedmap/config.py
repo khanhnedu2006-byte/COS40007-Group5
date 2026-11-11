@@ -16,9 +16,12 @@ OPENCELLID_RAW_FILE = DATA_RAW / "452.csv.gz"
 OSM_TOWERS_RAW_FILE = DATA_RAW / "osm_comm_towers.csv"
 OOKLA_CLEAN_FILE = DATA_INTERIM / "ookla_clean.csv"
 TOWERS_FILE = DATA_INTERIM / "hanoi_towers.csv"
+CELLS_FILE = DATA_INTERIM / "hanoi_cells.csv"
 TRAIN_FILE = DATA_PROCESSED / "hanoi_train.csv"
 TILES_FILE = DATA_PROCESSED / "hanoi_tiles.csv"
 HANOI_BOUNDARY_FILE = ROOT / "data" / "reference" / "hanoi_boundary.geojson"
+CONTEXT_GRID_FILE = ROOT / "data" / "reference" / "hanoi_context_grid.npz"
+CONTEXT_GRID_RES_DEG = 0.001  # ~110 m x 104 m
 
 # Khu vực Hà Nội: khung bao để lọc nhanh, ranh giới thật nằm trong HANOI_BOUNDARY_FILE
 HANOI_BBOX = {"lat_min": 20.54, "lat_max": 21.41, "lon_min": 105.35, "lon_max": 106.08}
@@ -43,6 +46,11 @@ RELIABILITY_LEVELS = [(3, "low"), (10, "medium"), (float("inf"), "high")]  # the
 TOWER_SEARCH_RADIUS_M = 3000
 NEAREST_TOWERS_IN_POPUP = 3
 
+# Ước lượng theo vùng quanh điểm click (độ chính xác cao hơn dự đoán từng ô, xem docs/data_contract.md)
+AREA_RADIUS_M = 1500
+AREA_MIN_TILES = 5  # ít hơn số ô Ookla này trong vùng thì lấy thêm điểm lưới
+AREA_GRID_STEP_M = 300
+
 # Giả định cho mô hình 3GPP (nhà mạng không công bố, dùng giá trị điển hình)
 # Một cấu hình chung cho mọi trạm (giá trị điển hình của trạm hiện đại)
 TOWER_PHYSICS = {"freq_ghz": 3.5, "bandwidth_mhz": 100, "tx_power_dbm": 46}
@@ -65,15 +73,19 @@ TARGET_COLUMN = "download_mbps"
 SECONDARY_TARGETS = ["upload_mbps", "latency_ms"]
 WEIGHT_COLUMN = "sample_weight"
 GROUP_COLUMN = "block_id"
-FEATURE_COLUMNS = [
-    "latitude",
-    "longitude",
-    "dist_nearest_tower_m",
-    "towers_500m",
-    "towers_1km",
-    "theory_mbps",
-    "quarter_index",
-]
+# Đặc trưng trạm (tower_features.py)
+TOWER_FEATURES = ["dist_nearest_tower_m", "towers_500m", "towers_1km", "theory_mbps"]
+# Đặc trưng hạ tầng và đô thị (point_features.py)
+INFRA_FEATURES = ["cells_1km", "cells_2km", "operators_1km", "center_km"]
+# Mức độ sử dụng quanh điểm, từ số thiết bị Ookla của các ô (không dùng tốc độ -> không rò nhãn)
+ACTIVITY_RADII_M = [1000, 2000, 5000]
+ACTIVITY_FEATURES = ["own_devices"] + [f"devices_{r // 1000}km" for r in ACTIVITY_RADII_M] + ["tiles_1km", "tiles_2km"]
+# Bối cảnh khu vực: dân số, đất xây dựng, cây, ruộng, nước, độ cao, đường lớn, điểm dịch vụ (context_features.py)
+CONTEXT_FEATURES = ["population_500m", "population_1km", "builtup_500m", "builtup_1km", "trees_1km", "cropland_1km",
+                    "water_1km", "elevation_m", "slope_deg", "roads_km_1km", "pois_1km"]
+# Các cột được phép trống khi chưa có dữ liệu nguồn
+OPTIONAL_FEATURES = ["theory_mbps"] + CONTEXT_FEATURES
+FEATURE_COLUMNS = ["latitude", "longitude"] + TOWER_FEATURES + INFRA_FEATURES + ACTIVITY_FEATURES + CONTEXT_FEATURES
 
 
 def quality_level(download_mbps: float) -> str:

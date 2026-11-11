@@ -1,7 +1,8 @@
 """Tower features for any list of points. SHARED by training and the backend.   Owner: Person 1
 
-Output columns (must match config.FEATURE_COLUMNS except quarter_index):
-    latitude, longitude, dist_nearest_tower_m, towers_500m, towers_1km, theory_mbps
+Output columns: latitude, longitude + config.TOWER_FEATURES
+    (dist_nearest_tower_m, towers_500m, towers_1km, theory_mbps)
+All model features together are built by speedmap.features.point_features.PointFeaturizer.
 dist_nearest_tower_m is the true distance to the nearest tower (not capped), because distance
 matters a lot in the suburbs. Towers within config.TOWER_SEARCH_RADIUS_M are used for theory_mbps.
 """
@@ -40,4 +41,4 @@ def tower_features(lat: np.ndarray, lon: np.ndarray, index: TowerIndex) -> pd.Da
         "towers_1km": index.count_within(lat, lon, 1000),
         "theory_mbps": theory_for_points(lat, lon, index),
     })
-    return feats[[c for c in config.FEATURE_COLUMNS if c != "quarter_index"]]
+    return feats[["latitude", "longitude"] + config.TOWER_FEATURES]
