@@ -19,6 +19,8 @@ data/processed/*
 !data/**/.gitkeep
 artifacts/models/*
 !artifacts/models/.gitkeep
+artifacts/reports/*
+!artifacts/reports/.gitkeep
 
 # Kết quả do model.py tạo ra (pipeline upload thành artefact)
 model_results.png
