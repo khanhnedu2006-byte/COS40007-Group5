@@ -60,10 +60,19 @@ Missing, malformed, non-finite, out-of-range or outside-polygon coordinates retu
 Location: `artifacts/models/regional/<run>/model.joblib` with adjacent `metadata.json` and parent `LATEST`.
 
 ```python
-{"kind": "regional_baseline", "model": fitted_baseline,
- "model_name": "random_forest", "area_radius_m": 500}
+{
+    "kind": "regional_baseline",
+    "model": fitted_baseline,
+    "model_name": "random_forest",
+    "area_radius_m": 500,
+}
 ```
 
-The estimator exposes `predict(features)` in Mbps. Metadata stores the ordered feature columns, settings, out-of-fold metrics, training period, input fingerprints, and scikit-learn version. KNN uses latitude/longitude; Random Forest uses `config.FEATURE_COLUMNS` except `theory_mbps`, with its fitted context imputer saved inside the model. The adapter rejects legacy hybrid/point bundles; train with `scripts/train_baselines.py`.
+The estimator exposes `predict(features)` in Mbps. Metadata stores the ordered feature columns, settings, out-of-fold metrics, training period, input fingerprints, and scikit-learn version. KNN uses latitude/longitude; Random Forest uses `config.FEATURE_COLUMNS` except `theory_mbps`, with its fitted context imputer saved inside the model. The adapter rejects legacy hybrid/point bundles; train with `python -m speedmap.cli.train_baselines`.
 
 See [training.md](training.md) for evaluation and [data_contract.md](data_contract.md) for matching inputs. Keep saved models and processed data from the same run together; canonical data fingerprints are checked at startup. Older regional runs with equivalent input hashes in `provenance.input_sha256` are verified through those hashes; unversioned or mismatched inputs are rejected.
+
+
+### Model selection
+
+`GET /api/models` returns `{ "default": "knn", "models": ["knn", ...] }` for a loaded regional bundle; data and demo modes return an empty list and a null default. `GET /api/predict` accepts an optional `model` query parameter from that list. Omitting it uses the trained regional winner. An unavailable name returns HTTP 422. Selection is per request and does not change the server default. Older regional bundles contain only their saved winner.

@@ -1,11 +1,24 @@
-"""3GPP TR 38.901 Urban Macro, non-line-of-sight path loss.   Owner: Person 2
+"""3GPP TR 38.901 urban macro non-line-of-sight path loss."""
 
-    PL(dB) = 13.54 + 39.08*log10(d_m) + 20*log10(f_GHz) - 0.6*(h_UT - 1.5)
-Clamp d at config.MIN_DISTANCE_M. Check: 400 m at 3.5 GHz -> about 126.1 dB.
-"""
 import numpy as np
+
+from speedmap import config
 
 
 def path_loss_db(distance_m: np.ndarray, freq_ghz: float) -> np.ndarray:
-    # TODO
-    raise NotImplementedError
+    distances = np.asarray(distance_m, dtype=float)
+    if (
+        not np.isfinite(distances).all()
+        or (distances < 0).any()
+        or not np.isfinite(freq_ghz)
+        or freq_ghz <= 0
+    ):
+        raise ValueError(
+            "Distances must be finite and non-negative and frequency positive"
+        )
+    return (
+        13.54
+        + 39.08 * np.log10(np.maximum(distances, config.MIN_DISTANCE_M))
+        + 20 * np.log10(freq_ghz)
+        - 0.6 * (config.UE_HEIGHT_M - 1.5)
+    )

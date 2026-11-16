@@ -6,7 +6,6 @@ All model features together are built by speedmap.features.point_features.PointF
 dist_nearest_tower_m is the true distance to the nearest tower (not capped), because distance
 matters a lot in the suburbs. Towers within config.TOWER_SEARCH_RADIUS_M are used for theory_mbps.
 """
-import warnings
 
 import numpy as np
 import pandas as pd
@@ -16,30 +15,30 @@ from speedmap.features.spatial import TowerIndex
 from speedmap.physics.link_budget import theoretical_speed_mbps
 
 
-def theory_for_points(lat: np.ndarray, lon: np.ndarray, index: TowerIndex) -> np.ndarray:
-    """3GPP theoretical speed for each point from the towers within the search radius.
-
-    Trả về NaN nếu module vật lý (Person 2) chưa viết xong, để phần dữ liệu không bị chặn.
-    """
+def theory_for_points(
+    lat: np.ndarray, lon: np.ndarray, index: TowerIndex
+) -> np.ndarray:
+    """3GPP theoretical speed for each point from the towers within the search radius."""
     _, dists = index.query_radius(lat, lon, config.TOWER_SEARCH_RADIUS_M)
-    try:
-        return np.array([theoretical_speed_mbps(d) for d in dists], dtype=float)
-    except NotImplementedError:
-        warnings.warn("physics.link_budget is not implemented yet: theory_mbps is NaN")
-        return np.full(len(dists), np.nan)
+    return np.array([theoretical_speed_mbps(d) for d in dists], dtype=float)
 
 
-def tower_features(lat: np.ndarray, lon: np.ndarray, index: TowerIndex,
-                   *, include_physics: bool = True) -> pd.DataFrame:
+def tower_features(
+    lat: np.ndarray, lon: np.ndarray, index: TowerIndex, *, include_physics: bool = True
+) -> pd.DataFrame:
     """Compute tower features; baseline callers leave the unused theory column empty."""
     lat = np.asarray(lat, dtype=float)
     lon = np.asarray(lon, dtype=float)
-    feats = pd.DataFrame({
-        "latitude": lat,
-        "longitude": lon,
-        "dist_nearest_tower_m": np.round(index.nearest_distance(lat, lon), 1),
-        "towers_500m": index.count_within(lat, lon, 500),
-        "towers_1km": index.count_within(lat, lon, 1000),
-        "theory_mbps": theory_for_points(lat, lon, index) if include_physics else np.full(len(lat), np.nan),
-    })
+    feats = pd.DataFrame(
+        {
+            "latitude": lat,
+            "longitude": lon,
+            "dist_nearest_tower_m": np.round(index.nearest_distance(lat, lon), 1),
+            "towers_500m": index.count_within(lat, lon, 500),
+            "towers_1km": index.count_within(lat, lon, 1000),
+            "theory_mbps": theory_for_points(lat, lon, index)
+            if include_physics
+            else np.full(len(lat), np.nan),
+        }
+    )
     return feats[["latitude", "longitude"] + config.TOWER_FEATURES]

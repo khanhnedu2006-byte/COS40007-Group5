@@ -1,24 +1,27 @@
 """Dataset towers and simulated speeds must retain independent provenance."""
+
 import numpy as np
 import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
 
-from backend.demo import DemoPredictor
-from backend.main import create_app
+from speedmap.api.demo import DemoPredictor
+from speedmap.api.main import create_app
 from speedmap import config
 
 
 @pytest.fixture
 def tower_file(tmp_path):
     path = tmp_path / "hanoi_towers.csv"
-    pd.DataFrame({
-        "tower_id": [901, 902, 903],
-        "latitude": [21.0285, 21.031, 21.04],
-        "longitude": [105.8543, 105.8542, 105.86],
-        "source": ["opencellid", "osm", "opencellid"],
-        "samples": [25, 0, 10],
-    }).to_csv(path, index=False)
+    pd.DataFrame(
+        {
+            "tower_id": [901, 902, 903],
+            "latitude": [21.0285, 21.031, 21.04],
+            "longitude": [105.8543, 105.8542, 105.86],
+            "source": ["opencellid", "osm", "opencellid"],
+            "samples": [25, 0, 10],
+        }
+    ).to_csv(path, index=False)
     return path
 
 
@@ -48,7 +51,9 @@ def test_missing_file_keeps_data_free_demo_available(tmp_path):
     assert not path.exists()
 
 
-def test_health_identifies_real_locations_without_claiming_model_is_loaded(tower_file, monkeypatch):
+def test_health_identifies_real_locations_without_claiming_model_is_loaded(
+    tower_file, monkeypatch
+):
     monkeypatch.setattr(config, "TOWERS_FILE", tower_file)
     with TestClient(create_app("demo")) as client:
         health = client.get("/api/health").json()
@@ -61,8 +66,13 @@ def test_health_identifies_real_locations_without_claiming_model_is_loaded(tower
         assert result["nearest_towers"][0]["source"] == "opencellid"
 
 
-@pytest.mark.parametrize("problem", ["empty", "columns", "missing_id", "duplicate_id", "nan", "infinite", "range"])
-def test_invalid_dataset_is_rejected_instead_of_silently_using_fake_towers(tower_file, problem):
+@pytest.mark.parametrize(
+    "problem",
+    ["empty", "columns", "missing_id", "duplicate_id", "nan", "infinite", "range"],
+)
+def test_invalid_dataset_is_rejected_instead_of_silently_using_fake_towers(
+    tower_file, problem
+):
     towers = pd.read_csv(tower_file)
     if problem == "empty":
         towers = towers.iloc[:0]
@@ -73,7 +83,9 @@ def test_invalid_dataset_is_rejected_instead_of_silently_using_fake_towers(tower
     elif problem == "duplicate_id":
         towers.loc[1, "tower_id"] = towers.loc[0, "tower_id"]
     else:
-        towers.loc[0, "latitude"] = {"nan": np.nan, "infinite": np.inf, "range": 100}[problem]
+        towers.loc[0, "latitude"] = {"nan": np.nan, "infinite": np.inf, "range": 100}[
+            problem
+        ]
     towers.to_csv(tower_file, index=False)
     with pytest.raises(ValueError):
         DemoPredictor(tower_file)
@@ -82,4 +94,7 @@ def test_invalid_dataset_is_rejected_instead_of_silently_using_fake_towers(tower
 def test_missing_source_is_labelled_as_estimated(tower_file):
     towers = pd.read_csv(tower_file).drop(columns="source")
     towers.to_csv(tower_file, index=False)
-    assert all(tower["source"] == "estimated" for tower in DemoPredictor(tower_file).tower_list())
+    assert all(
+        tower["source"] == "estimated"
+        for tower in DemoPredictor(tower_file).tower_list()
+    )

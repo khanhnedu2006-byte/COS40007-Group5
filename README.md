@@ -77,7 +77,7 @@ python -m venv .venv
 
 # Start the API in demo mode
 $env:SPEEDMAP_MODE = 'demo'
-.\.venv\Scripts\python.exe -m uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000
+.\.venv\Scripts\python.exe -m uvicorn speedmap.api.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 These commands use the virtual environment directly; activating it is optional. Leave this terminal running.
@@ -94,7 +94,7 @@ python3 -m venv .venv
 .venv/bin/python -m pip install -e . --no-deps
 
 # Start the API in demo mode
-SPEEDMAP_MODE=demo .venv/bin/python -m uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000
+SPEEDMAP_MODE=demo .venv/bin/python -m uvicorn speedmap.api.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 Leave this terminal running.
@@ -164,9 +164,9 @@ The app serves the selected **KNN or Random Forest baseline**, pooling point pre
 Train from the available raw Ookla, OpenCelliD and optional OSM inputs, using the checked-in context grid. In an environment installed with `requirements-dev.txt` and the editable package, run from the repository root:
 
 ```sh
-python scripts/run_pipeline.py --step towers
-python scripts/run_pipeline.py --step features
-python scripts/train_baselines.py
+python -m speedmap.cli.run_pipeline --step towers
+python -m speedmap.cli.run_pipeline --step features
+python -m speedmap.cli.train_baselines
 ```
 
 This creates the processed cell/tower tables, pools the latest four quarters into one observation per tile, compares both baselines on five spatial folds, and saves the regional winner. Physics is not required. Raw inputs and generated models/data are excluded from Git; retain them when handing off a trained run. Use the same scikit-learn version recorded in the model metadata when loading a saved model.
@@ -180,7 +180,7 @@ The current **500 m** run (`20261111-152722`) selected **Random Forest**: region
 Double-click **`start.bat`**, or start the backend manually on macOS/Linux:
 
 ```sh
-SPEEDMAP_MODE=model .venv/bin/python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
+SPEEDMAP_MODE=model .venv/bin/python -m uvicorn speedmap.api.main:app --host 127.0.0.1 --port 8000
 ```
 
 In PowerShell, set `$env:SPEEDMAP_MODE = 'model'` before starting Uvicorn. Start the frontend as above. `SPEEDMAP_MODEL_NAME` defaults to `regional`; set `SPEEDMAP_MODEL_RUN` to pin a saved run or leave it unset to load `LATEST`. Model mode reports missing/incompatible artifacts as unavailable and never substitutes demo data.
@@ -193,7 +193,7 @@ See the [model handoff guide](docs/application.md#switch-to-the-teams-trained-mo
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
-.\.venv\Scripts\python.exe -m ruff check backend src/speedmap/inference scripts/launch.py tests/test_api.py tests/test_predictor.py tests/test_launcher.py
+.\.venv\Scripts\python.exe -m ruff check src/speedmap/api src/speedmap/inference src/speedmap/cli/launch.py tests/test_api.py tests/test_predictor.py tests/test_launcher.py
 .\.venv\Scripts\python.exe -m pytest tests/test_api.py tests/test_predictor.py tests/test_launcher.py tests/test_boundary.py tests/test_features.py tests/test_context.py tests/test_artifacts.py tests/test_regional_training.py tests/test_area.py tests/test_knn.py tests/test_random_forest.py -q
 ```
 
@@ -225,9 +225,11 @@ Application checks work without a trained model. The full `pytest` suite also in
 ## Repository guide
 
 ```text
-backend/                  FastAPI endpoints, response schemas and demo predictor
+backend/                  Backend container configuration
 frontend/                 React interface, Leaflet map and browser tests
-src/speedmap/             Shared Python package
+src/speedmap/             Python application and shared package
+  api/                    FastAPI endpoints, response schemas and demo predictor
+  cli/                    Data, training and application commands
   data/                   Dataset loading, tower processing and Hanoi boundary
   features/               Shared spatial and tower features
   physics/                3GPP propagation and link budget
@@ -235,7 +237,7 @@ src/speedmap/             Shared Python package
   evaluation/             Spatial cross-validation, metrics and figures
   inference/              Saved-model adapter used by the backend
 notebooks/                Data exploration, training and evaluation
-scripts/                  Data downloads and pipeline entry points
+scripts/                  Windows launcher bootstrap
 data/                     Raw, interim, processed and reference data
 artifacts/                Model runs and report figures
 tests/                    Python tests
@@ -244,7 +246,7 @@ docs/                     Application guide and shared contracts
 compose.yaml              Local Docker stack
 ```
 
-Reusable logic belongs in `src/speedmap/`; notebooks call those functions so training and inference can share the same code. The older `ml/` directory contains earlier prototypes. Some data and model components remain marked `TODO` or `NotImplementedError`.
+Reusable logic belongs in `src/speedmap/`; notebooks call those functions so training and inference can share the same code. The older `src/ml/` package contains earlier prototypes. Some data and model components remain marked `TODO` or `NotImplementedError`.
 
 ### Team responsibilities
 
@@ -259,7 +261,7 @@ Reusable logic belongs in `src/speedmap/`; notebooks call those functions so tra
 | Workflow | Purpose |
 | --- | --- |
 | [Application CI](.github/workflows/application.yml) | Python lint and interface tests, notebook-output checks, frontend lint/build, browser tests and a Docker Compose smoke test. |
-| [Train ML Model](.github/workflows/train.yml) | The separate Group Task 2 TensorFlow workflow. Runs `model.py` on `data/ci/hanoi_train.csv` and uploads the results. |
+| [Train ML Model](.github/workflows/train.yml) | The separate Group Task 2 TensorFlow workflow. Runs `speedmap.cli.group_task_model` on `data/ci/hanoi_train.csv` and uploads the results. |
 
 Both workflows target pushes and pull requests to `main` and support manual runs. Public deployment is not configured yet.
 
@@ -293,3 +295,5 @@ Both workflows target pushes and pull requests to `main` and support manual runs
 The prediction pipeline uses **[Ookla Open Data](https://github.com/teamookla/ookla-open-data)** (CC BY-NC-SA 4.0) and **[OpenCelliD](https://opencellid.org/)** (CC BY-SA 4.0). The Hanoi boundary comes from **[geoBoundaries](https://www.geoboundaries.org/)** (CC BY 4.0). The default basemap is © **[Stadia Maps](https://stadiamaps.com/attribution/)**, **[OpenMapTiles](https://openmaptiles.org/)** and **[OpenStreetMap contributors](https://www.openstreetmap.org/copyright)**; the detailed style uses OpenStreetMap tiles. Local Stadia development needs no API key; public hosting needs domain authentication as described in the [application guide](docs/application.md).
 
 These credits describe the project data sources. Demo speeds are simulated; tower locations use the local dataset when available, otherwise simulated locations.
+
+After installing the package in editable mode, the package commands are available as `python -m speedmap.cli.<command>` after installation; console commands such as `speedmap-pipeline` and `speedmap-train-baselines` are also installed. Set `SPEEDMAP_ROOT` to an absolute project directory to override the default data and artifact root. The `src/ml` package is retained for historical prototypes and serialized model import compatibility.

@@ -10,6 +10,7 @@ Example:
     bundle, meta = load_model("hybrid")              # newest run
     bundle, meta = load_model("hybrid", "20261020-101500")
 """
+
 import json
 from datetime import datetime
 from pathlib import Path
@@ -20,8 +21,15 @@ from speedmap import config
 from speedmap.data.catalog import data_fingerprints
 
 
-def save_model(obj, name: str, metrics: dict | None = None, params: dict | None = None,
-               feature_columns: list | None = None, notes: str = "", provenance: dict | None = None) -> Path:
+def save_model(
+    obj,
+    name: str,
+    metrics: dict | None = None,
+    params: dict | None = None,
+    feature_columns: list | None = None,
+    notes: str = "",
+    provenance: dict | None = None,
+) -> Path:
     run_id = datetime.now().strftime("%Y%m%d-%H%M%S")
     run_dir = config.ARTIFACTS_MODELS / name / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -38,7 +46,9 @@ def save_model(obj, name: str, metrics: dict | None = None, params: dict | None 
         "provenance": provenance or {},
         "data_fingerprints": data_fingerprints(),
     }
-    (run_dir / "metadata.json").write_text(json.dumps(metadata, indent=2, default=str), encoding="utf-8")
+    (run_dir / "metadata.json").write_text(
+        json.dumps(metadata, indent=2, default=str), encoding="utf-8"
+    )
     (config.ARTIFACTS_MODELS / name / "LATEST").write_text(run_id, encoding="utf-8")
     return run_dir
 
@@ -48,7 +58,9 @@ def load_model(name: str, run_id: str | None = None):
     if run_id is None:
         latest = model_dir / "LATEST"
         if not latest.exists():
-            raise FileNotFoundError(f"No saved model named '{name}' in {config.ARTIFACTS_MODELS}")
+            raise FileNotFoundError(
+                f"No saved model named '{name}' in {config.ARTIFACTS_MODELS}"
+            )
         run_id = latest.read_text(encoding="utf-8").strip()
     run_dir = model_dir / run_id
     obj = joblib.load(run_dir / "model.joblib")

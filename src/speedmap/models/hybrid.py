@@ -1,18 +1,18 @@
-"""Main model: 3GPP theoretical speed + XGBoost correction.   Owner: Person 2
+"""Physics-guided XGBoost model and ablation models."""
 
-    target     = log1p(real download) - log1p(theory_mbps)
-    prediction = expm1(log1p(theory_mbps) + XGBoost(features))
-
-Also two ablation models: PhysicsOnly (3GPP alone) and XGBoostOnly (no theory_mbps).
-"""
 import numpy as np
+from xgboost import XGBRegressor
 
 from speedmap import config
 from speedmap.models.base import BaseSpeedModel
 
 DEFAULT_XGB_PARAMS = dict(
-    n_estimators=600, learning_rate=0.03, max_depth=6,
-    subsample=0.8, colsample_bytree=0.8, random_state=config.RANDOM_SEED,
+    n_estimators=600,
+    learning_rate=0.03,
+    max_depth=6,
+    subsample=0.8,
+    colsample_bytree=0.8,
+    random_state=config.RANDOM_SEED,
 )
 
 
@@ -22,20 +22,40 @@ class HybridModel(BaseSpeedModel):
     def __init__(self, **xgb_params):
         self.params = {**DEFAULT_XGB_PARAMS, **xgb_params}
         self.columns = list(config.FEATURE_COLUMNS)
-        # TODO: xgboost.XGBRegressor(**self.params)
+        self.model = XGBRegressor(**self.params)
+
+    def _features(self, X):
+        features = X[self.columns]
+        theory = features["theory_mbps"].to_numpy(dtype=float)
+        if not np.isfinite(theory).all() or (theory < 0).any():
+            raise ValueError(
+                "Hybrid model requires finite non-negative theory_mbps; rebuild features with physics"
+            )
+        if np.isinf(features.to_numpy(dtype=float)).any():
+            raise ValueError("Features must not contain infinity")
+        return features
 
     def fit(self, X, y, sample_weight=None):
-        # TODO
-        raise NotImplementedError
+        features = self._features(X)
+        y = np.asarray(y, dtype=float)
+        if y.ndim != 1 or len(y) != len(X) or not np.isfinite(y).all() or (y < 0).any():
+            raise ValueError("Targets must be aligned, finite and non-negative")
+        residual = np.log1p(y) - np.log1p(features["theory_mbps"].to_numpy())
+        self.model.fit(features, residual, sample_weight=sample_weight)
+        return self
 
     def correction(self, X) -> np.ndarray:
-        """XGBoost output (log ratio). Positive = faster than theory."""
-        # TODO
-        raise NotImplementedError
+        return self.model.predict(self._features(X))
 
     def predict(self, X):
-        # TODO
-        raise NotImplementedError
+        features = self._features(X)
+        return np.maximum(
+            0,
+            np.expm1(
+                np.log1p(features["theory_mbps"].to_numpy())
+                + self.model.predict(features)
+            ),
+        )
 
     def get_params(self):
         return self.params
@@ -43,12 +63,17 @@ class HybridModel(BaseSpeedModel):
 
 class PhysicsOnly(BaseSpeedModel):
     name = "physics_only"
+    columns = ["theory_mbps"]
 
     def fit(self, X, y, sample_weight=None):
+        self.predict(X)
         return self
 
     def predict(self, X):
-        return X["theory_mbps"].to_numpy()
+        result = X["theory_mbps"].to_numpy(dtype=float)
+        if not np.isfinite(result).all() or (result < 0).any():
+            raise ValueError("Physics model requires finite non-negative theory_mbps")
+        return result
 
 
 class XGBoostOnly(BaseSpeedModel):
@@ -57,15 +82,17 @@ class XGBoostOnly(BaseSpeedModel):
     def __init__(self, **xgb_params):
         self.params = {**DEFAULT_XGB_PARAMS, **xgb_params}
         self.columns = [c for c in config.FEATURE_COLUMNS if c != "theory_mbps"]
-        # TODO
+        self.model = XGBRegressor(**self.params)
 
     def fit(self, X, y, sample_weight=None):
-        # TODO: train on log1p(y)
-        raise NotImplementedError
+        y = np.asarray(y, dtype=float)
+        if y.ndim != 1 or len(y) != len(X) or not np.isfinite(y).all() or (y < 0).any():
+            raise ValueError("Targets must be aligned, finite and non-negative")
+        self.model.fit(X[self.columns], np.log1p(y), sample_weight=sample_weight)
+        return self
 
     def predict(self, X):
-        # TODO
-        raise NotImplementedError
+        return np.maximum(0, np.expm1(self.model.predict(X[self.columns])))
 
     def get_params(self):
         return self.params

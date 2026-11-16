@@ -23,7 +23,7 @@ The launchers create/check the local environment, install dependencies when need
 Alternatively, from a terminal on any supported platform:
 
 ```sh
-python scripts/launch.py actual
+python -m speedmap.cli.launch actual
 ```
 
 Replace `actual` with `data`, `model`, or `demo` to select a mode explicitly. Use the Python interpreter available on your system (`python3` on some Linux/macOS installations, or `py -3` on Windows).
@@ -33,7 +33,7 @@ Keep the launcher console open. Press **Enter** there to stop services it starte
 A startup check that stops its owned services afterward:
 
 ```sh
-python scripts/launch.py demo --smoke-test
+python -m speedmap.cli.launch demo --smoke-test
 ```
 
 ## Option B: start manually in two terminals
@@ -50,14 +50,14 @@ python -m pip install -e . --no-deps
 Linux/macOS, starting with a data-free demo:
 
 ```sh
-SPEEDMAP_MODE=demo python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
+SPEEDMAP_MODE=demo python -m uvicorn speedmap.api.main:app --host 127.0.0.1 --port 8000
 ```
 
 Windows PowerShell:
 
 ```powershell
 $env:SPEEDMAP_MODE = 'demo'
-python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
+python -m uvicorn speedmap.api.main:app --host 127.0.0.1 --port 8000
 ```
 
 Change the mode to `actual`, `data`, or `model` after preparing the corresponding inputs. If `SPEEDMAP_MODE` is unset, manual startup defaults to `actual`.

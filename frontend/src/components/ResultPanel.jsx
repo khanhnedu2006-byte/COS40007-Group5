@@ -1,5 +1,6 @@
 import Icon from "./Icon.jsx";
 import Legend from "./Legend.jsx";
+import { MODEL_LABELS } from "../models.js";
 import { formatDistance } from "./SelectedPoint.jsx";
 
 const descriptions = {
@@ -51,7 +52,7 @@ export default function ResultPanel({ result, error, loading, selected, onRetry 
     </section>
     <details className="model-details"><summary>Behind the estimate<Icon name="chevron" size={14} /></summary>
       <p>{demo ? "These speeds are simulated. Tower locations use the local dataset when available." : dataMode ? "Recorded tile speeds are pooled using test-weighted log means. These historical measurements are not live speed tests." : "Predictions across nearby tiles are pooled using test-weighted log means. More heavily measured tiles contribute more to the regional estimate."}</p>
-      <dl>{result.data_support && <div><dt>Latest nearby quarter</dt><dd>{result.data_support.latest_quarter}</dd></div>}<div><dt>Model</dt><dd>{demo ? "Simulated" : dataMode ? "Recorded data" : result.model_name === "knn" ? "KNN" : "Random Forest"}</dd></div><div><dt>Radius</dt><dd>{radius}</dd></div><div><dt>Version</dt><dd>{result.model_version}</dd></div></dl>
+      <dl>{result.data_support && <div><dt>Latest nearby quarter</dt><dd>{result.data_support.latest_quarter}</dd></div>}<div><dt>Model</dt><dd>{demo ? "Simulated" : dataMode ? "Recorded data" : MODEL_LABELS[result.model_name] || result.model_name}</dd></div><div><dt>Radius</dt><dd>{radius}</dd></div><div><dt>Version</dt><dd>{result.model_version}</dd></div></dl>
     </details>
   </>;
 }

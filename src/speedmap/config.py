@@ -1,7 +1,13 @@
 """Shared settings for the whole project. Change values here, not inside other modules."""
+
+import os
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = (
+    Path(os.environ.get("SPEEDMAP_ROOT", Path(__file__).resolve().parents[2]))
+    .expanduser()
+    .resolve()
+)
 
 # Thư mục dữ liệu
 DATA_RAW = ROOT / "data" / "raw"
@@ -33,14 +39,21 @@ RANDOM_SEED = 42
 MAX_LATENCY_MS = 500
 MIN_TESTS_FOR_EVAL = 3
 MIN_TOWER_SAMPLES = 2
-TOWER_RADIOS = ("LTE", "NR")  # cell di động hiện đại, gộp chung thành "trạm"; không phân biệt công nghệ
+TOWER_RADIOS = (
+    "LTE",
+    "NR",
+)  # cell di động hiện đại, gộp chung thành "trạm"; không phân biệt công nghệ
 TOWER_MERGE_DECIMALS = 3
 TOWER_BUFFER_KM = 5
 OSM_MIN_GAP_M = 200  # chỉ thêm cột OSM cách trạm OpenCelliD gần nhất trên 200 m (tránh trùng)  # giữ cả trạm ngoài ranh giới nhưng cách biên dưới 5 km
 
 # Bảng mỗi ô một dòng (hanoi_tiles.csv)
 POOL_QUARTERS = 4  # gộp các quý gần nhất để giảm nhiễu
-RELIABILITY_LEVELS = [(3, "low"), (10, "medium"), (float("inf"), "high")]  # theo tổng số test của ô  # làm tròn toạ độ (~100 m) để gộp các cell thành một trạm
+RELIABILITY_LEVELS = [
+    (3, "low"),
+    (10, "medium"),
+    (float("inf"), "high"),
+]  # theo tổng số test của ô  # làm tròn toạ độ (~100 m) để gộp các cell thành một trạm
 
 # Đặc trưng trạm
 TOWER_SEARCH_RADIUS_M = 3000
@@ -66,7 +79,12 @@ CALIBRATION_SHARE = 0.2
 CONFIDENCE_LEVEL = 0.80
 
 # Mức chất lượng theo download (Mbps), xem mục 5.1 của spec
-QUALITY_LEVELS = [(15, "Poor"), (100, "Fair"), (200, "Good"), (float("inf"), "Excellent")]
+QUALITY_LEVELS = [
+    (15, "Poor"),
+    (100, "Fair"),
+    (200, "Good"),
+    (float("inf"), "Excellent"),
+]
 
 # Hợp đồng dữ liệu giữa phần dữ liệu và phần model, xem docs/data_contract.md
 TARGET_COLUMN = "download_mbps"
@@ -79,13 +97,34 @@ TOWER_FEATURES = ["dist_nearest_tower_m", "towers_500m", "towers_1km", "theory_m
 INFRA_FEATURES = ["cells_1km", "cells_2km", "operators_1km", "center_km"]
 # Mức độ sử dụng quanh điểm, từ số thiết bị Ookla của các ô (không dùng tốc độ -> không rò nhãn)
 ACTIVITY_RADII_M = [1000, 2000, 5000]
-ACTIVITY_FEATURES = ["own_devices"] + [f"devices_{r // 1000}km" for r in ACTIVITY_RADII_M] + ["tiles_1km", "tiles_2km"]
+ACTIVITY_FEATURES = (
+    ["own_devices"]
+    + [f"devices_{r // 1000}km" for r in ACTIVITY_RADII_M]
+    + ["tiles_1km", "tiles_2km"]
+)
 # Bối cảnh khu vực: dân số, đất xây dựng, cây, ruộng, nước, độ cao, đường lớn, điểm dịch vụ (context_features.py)
-CONTEXT_FEATURES = ["population_500m", "population_1km", "builtup_500m", "builtup_1km", "trees_1km", "cropland_1km",
-                    "water_1km", "elevation_m", "slope_deg", "roads_km_1km", "pois_1km"]
+CONTEXT_FEATURES = [
+    "population_500m",
+    "population_1km",
+    "builtup_500m",
+    "builtup_1km",
+    "trees_1km",
+    "cropland_1km",
+    "water_1km",
+    "elevation_m",
+    "slope_deg",
+    "roads_km_1km",
+    "pois_1km",
+]
 # Các cột được phép trống khi chưa có dữ liệu nguồn
 OPTIONAL_FEATURES = ["theory_mbps"] + CONTEXT_FEATURES
-FEATURE_COLUMNS = ["latitude", "longitude"] + TOWER_FEATURES + INFRA_FEATURES + ACTIVITY_FEATURES + CONTEXT_FEATURES
+FEATURE_COLUMNS = (
+    ["latitude", "longitude"]
+    + TOWER_FEATURES
+    + INFRA_FEATURES
+    + ACTIVITY_FEATURES
+    + CONTEXT_FEATURES
+)
 
 
 def quality_level(download_mbps: float) -> str:

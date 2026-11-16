@@ -1,0 +1,185 @@
+"""Local application API. Run: python -m uvicorn speedmap.api.main:app --reload."""
+
+import json
+import logging
+import os
+from contextlib import asynccontextmanager
+from datetime import datetime, timezone
+from time import perf_counter
+
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.middleware.cors import CORSMiddleware
+
+from speedmap import config
+from speedmap.api.schemas import HealthResponse, PredictionResponse, Tower
+from speedmap.runtime import resolve_mode
+
+logger = logging.getLogger("uvicorn.error")
+
+
+def create_app(mode: str | None = None, predictor=None) -> FastAPI:
+    selected_mode = resolve_mode(
+        mode or os.getenv("SPEEDMAP_MODE", "actual"),
+        config.ARTIFACTS_MODELS,
+        os.getenv("SPEEDMAP_MODEL_NAME", "regional"),
+        os.getenv("SPEEDMAP_MODEL_RUN"),
+    )
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        app.state.predictor = predictor
+        if app.state.predictor is None:
+            try:
+                if selected_mode == "demo":
+                    from speedmap.api.demo import DemoPredictor
+
+                    app.state.predictor = DemoPredictor()
+                elif selected_mode == "data":
+                    from speedmap.inference.data_predictor import DataPredictor
+
+                    app.state.predictor = DataPredictor()
+                else:
+                    from speedmap.inference.predictor import Predictor
+
+                    app.state.predictor = Predictor(
+                        os.getenv("SPEEDMAP_MODEL_NAME", "regional"),
+                        os.getenv("SPEEDMAP_MODEL_RUN") or None,
+                    )
+            except Exception:
+                logger.exception(
+                    "Predictor unavailable; API will return 503. Mode=%s", selected_mode
+                )
+        yield
+        app.state.predictor = None
+
+    app = FastAPI(title="Hanoi Signal API", version="0.3.0", lifespan=lifespan)
+    origins = os.getenv(
+        "SPEEDMAP_CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
+    )
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[
+            origin.strip() for origin in origins.split(",") if origin.strip()
+        ],
+        allow_methods=["GET"],
+        allow_headers=["*"],
+    )
+
+    @app.middleware("http")
+    async def log_request(request: Request, call_next):
+        started = perf_counter()
+        status = 500
+        try:
+            response = await call_next(request)
+            status = response.status_code
+            return response
+        finally:
+            logger.info(
+                json.dumps(
+                    {
+                        "event": "request",
+                        "time": datetime.now(timezone.utc).isoformat(),
+                        "path": request.url.path,
+                        "method": request.method,
+                        "status": status,
+                        "duration_ms": round((perf_counter() - started) * 1000, 2),
+                        "lat": request.query_params.get("lat"),
+                        "lon": request.query_params.get("lon"),
+                        "mode": selected_mode,
+                    }
+                )
+            )
+
+    def get_predictor():
+        service = app.state.predictor
+        if service is None:
+            raise HTTPException(
+                503,
+                "Prediction service unavailable. Check the backend logs, data files and model setup.",
+            )
+        return service
+
+    @app.get("/api/health", response_model=HealthResponse)
+    def health():
+        service = app.state.predictor
+        return {
+            "status": "ok" if service is not None else "unavailable",
+            "ready": service is not None,
+            "mode": selected_mode,
+            "model_loaded": selected_mode == "model" and service is not None,
+            "model_version": getattr(service, "version", None),
+            "tower_count": len(service.tower_list()) if service is not None else 0,
+            "tower_data_source": getattr(service, "tower_data_source", "dataset")
+            if service is not None
+            else None,
+            "observation_count": getattr(service, "observation_count", None),
+            "data_period": getattr(service, "data_period", None),
+            "data_fingerprints": getattr(service, "data_fingerprints", {}),
+        }
+
+    @app.get("/api/boundary")
+    def boundary():
+        return json.loads(config.HANOI_BOUNDARY_FILE.read_text(encoding="utf-8"))
+
+    @app.get("/api/towers", response_model=list[Tower])
+    def towers():
+        return get_predictor().tower_list()
+
+    @app.get("/api/models")
+    def models():
+        service = get_predictor()
+        if not hasattr(service, "available_models"):
+            return {"default": None, "models": []}
+        return service.available_models()
+
+    @app.get("/api/predict", response_model=PredictionResponse)
+    def predict(
+        lat: float = Query(..., ge=-90, le=90, allow_inf_nan=False),
+        lon: float = Query(..., ge=-180, le=180, allow_inf_nan=False),
+        model: str | None = Query(None),
+    ):
+        if not config.inside_hanoi(lat, lon):
+            raise HTTPException(
+                422,
+                "This point is outside Hanoi. Choose a location inside the city boundary.",
+            )
+        try:
+            service = get_predictor()
+            if model is not None:
+                if (
+                    not hasattr(service, "available_models")
+                    or model not in service.available_models()["models"]
+                ):
+                    raise HTTPException(422, "The selected model is not available.")
+                payload = service.predict(lat, lon, model)
+            else:
+                payload = service.predict(lat, lon)
+            if "area_download_mbps" not in payload and hasattr(service, "predict_area"):
+                payload.update(service.predict_area(lat, lon))
+            result = PredictionResponse.model_validate(payload)
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.exception("Prediction failed")
+            raise HTTPException(
+                503,
+                "Could not estimate this location. Try again or check the backend logs.",
+            ) from exc
+        logger.info(
+            json.dumps(
+                {
+                    "event": "prediction",
+                    "lat": lat,
+                    "lon": lon,
+                    "area_download_mbps": result.area_download_mbps,
+                    "area_radius_m": result.area_radius_m,
+                    "model_version": result.model_version,
+                }
+            )
+        )
+        return result
+
+    return app
+
+
+app = create_app()

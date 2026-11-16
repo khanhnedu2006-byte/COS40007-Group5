@@ -29,7 +29,7 @@ If activation is unavailable, replace `python` in the following commands with `.
 ## 2. Fetch Ookla mobile observations
 
 ```sh
-python scripts/fetch_ookla_hanoi.py
+python -m speedmap.cli.fetch_ookla_hanoi
 ```
 
 The script reads Ookla's public Parquet data through DuckDB and filters the Hanoi envelope. It writes `data/raw/ookla_hanoi_mobile.csv`. Exact administrative-boundary filtering happens during feature preparation.
@@ -37,7 +37,7 @@ The script reads Ookla's public Parquet data through DuckDB and filters the Hano
 The script's default is **2024 Q4 through 2026 Q3**, not a rolling latest-quarter query. To select quarters explicitly:
 
 ```sh
-python scripts/fetch_ookla_hanoi.py --quarters 2025-4 2026-1 2026-2 2026-3 --kind mobile --out data/raw/ookla_hanoi_mobile.csv
+python -m speedmap.cli.fetch_ookla_hanoi --quarters 2025-4 2026-1 2026-2 2026-3 --kind mobile --out data/raw/ookla_hanoi_mobile.csv
 ```
 
 The selected quarters replace the output CSV; use a separate `--out` path if preserving another download. Failed quarters are printed as `skipped`; inspect the log and retry before treating the download as complete. If every quarter fails, the script exits without a new dataset. DuckDB's `httpfs` extension and the remote data both require internet access.
@@ -55,7 +55,7 @@ Keep access tokens outside the repository. Country exports change over time, so 
 ## 4. Fetch optional OSM masts
 
 ```sh
-python scripts/fetch_osm_towers.py
+python -m speedmap.cli.fetch_osm_towers
 ```
 
 Output: `data/raw/osm_comm_towers.csv`. The preparation step adds qualifying telecom masts that are sufficiently far from existing OpenCelliD locations. This input is optional; OpenCelliD remains required. The script tries several Overpass endpoints. Retry if all endpoints fail.
@@ -65,8 +65,8 @@ Output: `data/raw/osm_comm_towers.csv`. The preparation step adds qualifying tel
 The repository already contains the Hanoi boundary and `data/reference/hanoi_context_grid.npz`; keep those reference files in place. With the raw observations and cells available:
 
 ```sh
-python scripts/run_pipeline.py --step towers
-python scripts/run_pipeline.py --step features
+python -m speedmap.cli.run_pipeline --step towers
+python -m speedmap.cli.run_pipeline --step features
 ```
 
 The tower step writes:
@@ -91,10 +91,10 @@ Skip this section when using the checked-in context grid. Rebuilding context can
 
 ```sh
 python -m pip install rasterio
-python scripts/fetch_context_data.py
-python scripts/fetch_places.py
-python scripts/run_pipeline.py --step context
-python scripts/run_pipeline.py --step features
+python -m speedmap.cli.fetch_context_data
+python -m speedmap.cli.fetch_places
+python -m speedmap.cli.run_pipeline --step context
+python -m speedmap.cli.run_pipeline --step features
 ```
 
 `fetch_context_data.py` downloads population, land-cover, elevation, roads and OSM POIs to `data/raw/context/`, skipping files already present. `fetch_places.py` supplies Overture POIs as an alternative to Overpass POIs; the context builder prefers `overture_places.json` when present. The context step rebuilds `data/reference/hanoi_context_grid.npz` from available layers. Check downloader output for failures or missing layers before using the rebuilt grid.
@@ -102,10 +102,10 @@ python scripts/run_pipeline.py --step features
 ## Verify and continue
 
 ```sh
-python model.py --check-data
+python -m speedmap.cli.group_task_model --check-data
 ```
 
-This validates the canonical tile-quarter table and prints its source, dimensions, period and fingerprint without importing TensorFlow. To refresh only the CI copy after a deliberate training-table update, run `python scripts/sync_ci_data.py`.
+This validates the canonical tile-quarter table and prints its source, dimensions, period and fingerprint without importing TensorFlow. To refresh only the CI copy after a deliberate training-table update, run `python -m speedmap.cli.sync_ci_data`.
 
 Changing processed inputs can invalidate saved models. Retrain against the new inputs and restart the API after updates; strict model mode reports a fingerprint mismatch instead of using stale inputs.
 

@@ -1,7 +1,8 @@
 import Icon from "./Icon.jsx";
 import ResultPanel from "./ResultPanel.jsx";
+import { MODEL_LABELS } from "../models.js";
 
-export default function Sidebar({ towerCount, result, error, loading, selected, places, onSelect, disabled, simulatedTowers, onRetry }) {
+export default function Sidebar({ towerCount, result, error, loading, selected, places, onSelect, disabled, simulatedTowers, onRetry, models, selectedModel, onModelChange, modelsError }) {
   return (
     <aside className="sidebar">
       <div className="sidebar-intro">
@@ -18,6 +19,15 @@ export default function Sidebar({ towerCount, result, error, loading, selected, 
           </button>)}
         </div>
       </section>
+      {(models.length > 0 || modelsError) && <div className="model-picker">
+        {models.length > 0 && <><label htmlFor="prediction-model">Prediction model</label>
+          <select id="prediction-model" value={selectedModel} onChange={(event) => onModelChange(event.target.value)} disabled={disabled}>
+            {models.map((model) => <option key={model} value={model}>{MODEL_LABELS[model] || model}</option>)}
+          </select>
+          {models.length === 1 && <p>Only one trained model is available.</p>}
+        </>}
+        {modelsError && <p role="status">{modelsError}</p>}
+      </div>}
       <section className="result-section" aria-labelledby="result-heading" aria-busy={loading}>
         <div className="section-heading"><h2 id="result-heading">Your signal snapshot</h2><span>02 — DISCOVER</span></div>
         <div aria-live="polite" aria-atomic="true">

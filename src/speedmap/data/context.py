@@ -1,11 +1,12 @@
 """Context layers for Hanoi on one regular grid (~100 m).   Owner: Person 1
 
-Input:  data/raw/context/ (downloaded by scripts/fetch_context_data.py)
+Input:  data/raw/context/ (downloaded by src/speedmap/cli/fetch_context_data.py)
 Output: data/reference/hanoi_context_grid.npz, small enough for git and for the backend (numpy only)
 
 Layers per grid cell: population (people), builtup / trees / cropland / water (share of area 0–1),
 elevation_m, slope_deg, roads_km (major roads), pois (shops, restaurants, schools, offices: Overture places or OSM).
 """
+
 import json
 import warnings
 
@@ -31,13 +32,23 @@ def grid_transform():
     return from_origin(b["lon_min"], b["lat_max"], res, res)
 
 
-def _reproject(source, src_transform, src_crs, resampling, src_nodata=None) -> np.ndarray:
+def _reproject(
+    source, src_transform, src_crs, resampling, src_nodata=None
+) -> np.ndarray:
     from rasterio.warp import reproject
 
     dst = np.full(grid_shape(), np.nan, dtype="float32")
-    reproject(source=source, destination=dst, src_transform=src_transform, src_crs=src_crs,
-              src_nodata=src_nodata, dst_transform=grid_transform(), dst_crs="EPSG:4326",
-              dst_nodata=np.nan, resampling=resampling)
+    reproject(
+        source=source,
+        destination=dst,
+        src_transform=src_transform,
+        src_crs=src_crs,
+        src_nodata=src_nodata,
+        dst_transform=grid_transform(),
+        dst_crs="EPSG:4326",
+        dst_nodata=np.nan,
+        resampling=resampling,
+    )
     return dst
 
 
@@ -51,7 +62,9 @@ def _window(src):
     from rasterio.windows import Window, from_bounds
 
     b = config.HANOI_BBOX
-    win = from_bounds(b["lon_min"], b["lat_min"], b["lon_max"], b["lat_max"], src.transform)
+    win = from_bounds(
+        b["lon_min"], b["lat_min"], b["lon_max"], b["lat_max"], src.transform
+    )
     win = win.round_offsets().round_lengths()
     try:
         return win.intersection(Window(0, 0, src.width, src.height))
@@ -70,7 +83,9 @@ def population_layer() -> np.ndarray:
         if nodata is not None:
             data[data == nodata] = np.nan
         data[data < 0] = np.nan
-        out = _reproject(data, src.window_transform(win), src.crs, Resampling.sum, src_nodata=np.nan)
+        out = _reproject(
+            data, src.window_transform(win), src.crs, Resampling.sum, src_nodata=np.nan
+        )
     return np.nan_to_num(out, nan=0.0)
 
 
@@ -78,7 +93,9 @@ def landcover_layers() -> dict:
     import rasterio
     from rasterio.enums import Resampling
 
-    layers = {k: np.full(grid_shape(), np.nan, dtype="float32") for k in WORLDCOVER_CLASSES}
+    layers = {
+        k: np.full(grid_shape(), np.nan, dtype="float32") for k in WORLDCOVER_CLASSES
+    }
     for tile in sorted(RAW_DIR.glob("worldcover_*.tif")):
         with rasterio.open(tile) as src:
             win = _window(src)
@@ -89,7 +106,10 @@ def landcover_layers() -> dict:
             for name, code in WORLDCOVER_CLASSES.items():
                 # Tỉ lệ diện tích của lớp này trong mỗi ô lưới = trung bình của mặt nạ 0/1
                 mask = (classes == code).astype("float32")
-                layers[name] = _combine(layers[name], _reproject(mask, transform, src.crs, Resampling.average))
+                layers[name] = _combine(
+                    layers[name],
+                    _reproject(mask, transform, src.crs, Resampling.average),
+                )
     return layers
 
 
@@ -104,7 +124,16 @@ def elevation_layers() -> dict:
             if win.width <= 0 or win.height <= 0:
                 continue
             data = src.read(1, window=win).astype("float32")
-            elev = _combine(elev, _reproject(data, src.window_transform(win), src.crs, Resampling.average, src.nodata))
+            elev = _combine(
+                elev,
+                _reproject(
+                    data,
+                    src.window_transform(win),
+                    src.crs,
+                    Resampling.average,
+                    src.nodata,
+                ),
+            )
     res = config.CONTEXT_GRID_RES_DEG
     lat0 = (config.HANOI_BBOX["lat_min"] + config.HANOI_BBOX["lat_max"]) / 2
     dy, dx = res * 110_570, res * 111_320 * np.cos(np.radians(lat0))
@@ -129,7 +158,9 @@ def road_layer(path=None) -> np.ndarray:
     for el in json.loads(path.read_text(encoding="utf-8")).get("elements", []):
         pts = np.array([(g["lat"], g["lon"]) for g in el.get("geometry", [])])
         for (la1, lo1), (la2, lo2) in zip(pts[:-1], pts[1:]):
-            km = np.hypot((la2 - la1) * 110.57, (lo2 - lo1) * 111.32 * np.cos(np.radians(la1)))
+            km = np.hypot(
+                (la2 - la1) * 110.57, (lo2 - lo1) * 111.32 * np.cos(np.radians(la1))
+            )
             n = max(int(km / 0.02), 1)
             t = (np.arange(n) + 0.5) / n
             r, c, ok = _cell_index(la1 + t * (la2 - la1), lo1 + t * (lo2 - lo1))
@@ -138,7 +169,7 @@ def road_layer(path=None) -> np.ndarray:
 
 
 def poi_path():
-    """Overture places if downloaded (scripts/fetch_places.py), otherwise OpenStreetMap POIs."""
+    """Overture places if downloaded (src/speedmap/cli/fetch_places.py), otherwise OpenStreetMap POIs."""
     for name in ("overture_places.json", "osm_pois.json"):
         if (RAW_DIR / name).exists():
             return RAW_DIR / name
@@ -183,4 +214,6 @@ def save_context_grid(layers: dict, path=config.CONTEXT_GRID_FILE) -> None:
     b = config.HANOI_BBOX
     meta = np.array([b["lat_max"], b["lon_min"], config.CONTEXT_GRID_RES_DEG])
     path.parent.mkdir(parents=True, exist_ok=True)
-    np.savez_compressed(path, _meta=meta, **{k: v.astype("float32") for k, v in layers.items()})
+    np.savez_compressed(
+        path, _meta=meta, **{k: v.astype("float32") for k, v in layers.items()}
+    )

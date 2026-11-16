@@ -22,6 +22,19 @@ dependencies = [
     "xgboost>=3.2.0",
 ]
 
+[project.scripts]
+speedmap-launch = "speedmap.cli.launch:main"
+speedmap-pipeline = "speedmap.cli.run_pipeline:main"
+speedmap-train-baselines = "speedmap.cli.train_baselines:main"
+speedmap-train-knn = "speedmap.cli.train_knn:main"
+speedmap-train-random-forest = "speedmap.cli.train_random_forest:main"
+speedmap-fetch-ookla = "speedmap.cli.fetch_ookla_hanoi:main"
+speedmap-fetch-context = "speedmap.cli.fetch_context_data:main"
+speedmap-fetch-osm-towers = "speedmap.cli.fetch_osm_towers:main"
+speedmap-fetch-places = "speedmap.cli.fetch_places:main"
+speedmap-sync-ci-data = "speedmap.cli.sync_ci_data:main"
+speedmap-group-task-model = "speedmap.cli.group_task_model:main"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 

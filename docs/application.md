@@ -4,13 +4,13 @@ For setup, use [Fetch and prepare data](fetching_data.md), [Run and evaluate mod
 
 ## Local run
 
-On Windows, double-click `demo.bat` for simulated predictions or `start.bat` for actual mode (registered model or recorded data). `scripts/launch.cmd` prefers this computer's Python (`py -3`, `python` or `python3`) and calls the shared `scripts/launch.py` manager. A working `.venv` interpreter is a fallback when those commands are unavailable. The manager validates the environment's original Python version, base interpreter, architecture and project location. A broken or incompatible environment is preserved under `.venv.backup-<timestamp>/`, then recreated with the selected interpreter.
+On Windows, double-click `demo.bat` for simulated predictions or `start.bat` for actual mode (registered model or recorded data). `scripts/launch.cmd` prefers this computer's Python (`py -3`, `python` or `python3`) and calls the shared `src/speedmap/cli/launch.py` manager. A working `.venv` interpreter is a fallback when those commands are unavailable. The manager validates the environment's original Python version, base interpreter, architecture and project location. A broken or incompatible environment is preserved under `.venv.backup-<timestamp>/`, then recreated with the selected interpreter.
 
 Setup ensures pip is present and upgrades pip, setuptools and wheel before installing `requirements-app.txt` (demo) or `requirements-model.txt` (real model), then installs the shared package. It runs `npm ci` when needed. Backend cache keys include the Python runtime and absolute project location; frontend keys also include Node and the operating system/architecture. Copied cache files therefore cannot skip setup on a different project location or runtime.
 
 The launcher starts Python and Node directly, waits for `/api/health` through both ports, checks the requested prediction mode and opens the browser. Press Enter in its console to stop its own services. Ready services can be reused, but a running demo backend cannot be reused as model mode. Port conflicts and failed model readiness produce errors; logs are written to `.run/`. The launchers require Python and Node/npm to be installed first. Model files and matching processed data come from the regional training workflow.
 
-For a startup/cleanup smoke check without opening a browser, run `python scripts/launch.py demo --smoke-test`. A real-model check is `python scripts/launch.py model --smoke-test` once artifacts are available. The checks use the normal local ports and leave reused services running.
+For a startup/cleanup smoke check without opening a browser, run `python -m speedmap.cli.launch demo --smoke-test`. A real-model check is `python -m speedmap.cli.launch model --smoke-test` once artifacts are available. The checks use the normal local ports and leave reused services running.
 
 ### Manual startup
 
@@ -20,7 +20,7 @@ From the repository root, activate your virtual environment, then:
 ```powershell
 python -m pip install -r requirements-dev.txt
 python -m pip install -e . --no-deps
-python -m uvicorn backend.main:app --reload
+python -m uvicorn speedmap.api.main:app --reload
 ```
 
 In a second terminal:
@@ -60,7 +60,7 @@ In PowerShell, before starting the backend:
 $env:SPEEDMAP_MODE = 'model'
 $env:SPEEDMAP_MODEL_NAME = 'regional'
 $env:SPEEDMAP_MODEL_RUN = '20261111-133102' # Replace with the actual approved run ID.
-python -m uvicorn backend.main:app --reload
+python -m uvicorn speedmap.api.main:app --reload
 ```
 
 Pin the agreed run explicitly. Without `SPEEDMAP_MODEL_RUN`, the existing registry's `LATEST` file is used; that file marks the latest saved run, not an independently approved champion. Champion promotion and artifact/data compatibility remain a coordination point with the model owner. Restart the backend after changing the artifact or environment settings.
@@ -80,7 +80,7 @@ From the root:
 
 ```powershell
 python -m pip install -r requirements-dev.txt
-python -m ruff check backend src/speedmap/inference scripts/launch.py tests/test_api.py tests/test_predictor.py tests/test_launcher.py
+python -m ruff check src/speedmap/api src/speedmap/inference src/speedmap/cli/launch.py tests/test_api.py tests/test_predictor.py tests/test_launcher.py
 python -m pytest tests/test_api.py tests/test_predictor.py tests/test_launcher.py tests/test_boundary.py tests/test_features.py tests/test_context.py tests/test_artifacts.py tests/test_regional_training.py tests/test_area.py tests/test_knn.py tests/test_random_forest.py -q
 ```
 

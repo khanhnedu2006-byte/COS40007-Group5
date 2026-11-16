@@ -11,14 +11,14 @@ The required prepared files are `hanoi_tiles.csv`, `hanoi_towers.csv` and `hanoi
 Install the application/development requirements and the editable package. From the root, with that Python environment active:
 
 ```sh
-python scripts/run_pipeline.py --step towers
-python scripts/run_pipeline.py --step features
-python scripts/train_baselines.py
+python -m speedmap.cli.run_pipeline --step towers
+python -m speedmap.cli.run_pipeline --step features
+python -m speedmap.cli.train_baselines
 ```
 
-The first two steps rebuild generated data from local raw inputs: Ookla mobile tiles, OpenCelliD cells, optional OSM masts, the boundary and context grid. They do not download inputs. `python scripts/run_pipeline.py --step baselines` is an equivalent training entrypoint. Avoid `--step all` while the separate hybrid pipeline is unfinished.
+The first two steps rebuild generated data from local raw inputs: Ookla mobile tiles, OpenCelliD cells, optional OSM masts, the boundary and context grid. They do not download inputs. `python -m speedmap.cli.run_pipeline --step baselines` is an equivalent training entrypoint. Run `python -m speedmap.cli.run_pipeline --step features --include-physics` followed by `python -m speedmap.cli.run_pipeline --step hybrid` to compare all five models and save the regional winner. `--step all` also builds physics features and runs this comparison.
 
-Feature generation skips physics by default for the regional baselines and prints an informational message. The `theory_mbps` column remains empty to preserve the shared table schema; it is excluded by both models. Baseline training and serving do not call the unfinished physics functions. To explicitly attempt the physics feature for separate hybrid work, run `python scripts/run_pipeline.py --step features --include-physics`; that path still warns until physics is implemented.
+Feature generation skips physics by default for the regional baselines and prints an informational message. The `theory_mbps` column remains empty to preserve the shared table schema; it is excluded by both models. Baseline training and serving do not call the unfinished physics functions. The full comparison requires rebuilding features with `--include-physics`; training rejects missing or invalid theory values.
 
 The training table is `data/processed/hanoi_tiles.csv`, containing one observation per tile pooled over the latest four available quarters. For each tile, download is `expm1(sum(tests * log1p(speed)) / sum(tests))`. Preserve quadkeys as strings. All tiles, including those with few tests, participate in training and out-of-fold regional pooling.
 
@@ -37,7 +37,13 @@ Tile metrics use held-out rows with at least three tests. Regional metrics call 
 
 MAE and RMSE use scikit-learn's `mean_absolute_error` and `root_mean_squared_error`. Quality accuracy uses `accuracy_score` after assigning Poor (<15 Mbps), Fair (15–<100), Good (100–<200), or Excellent (>=200). Within-one-level accuracy and support coverage are project-specific calculations. The majority baseline predicts the most common true regional category.
 
-Select the lowest regional MAE; ties prefer higher regional quality accuracy, then KNN. Fit that model on all pooled tiles using the same settings. There is no hyperparameter search in this comparison.
+Select the lowest regional MAE; ties prefer higher regional quality accuracy, then the model name in alphabetical order. Fit that model on all pooled tiles using the same settings. There is no hyperparameter search in this comparison.
+
+The full comparison also evaluates the hybrid 3GPP/XGBoost model and physics-only and XGBoost-only ablations. XGBoost models train on log speed; the hybrid learns the log difference from the physics estimate. Theoretical speed uses the configured common tower assumptions, not measured network parameters. Missing context features are handled by XGBoost. Each hybrid fold separately reserves training blocks for conformal calibration and reports tile-level coverage and width on held-out tiles. These intervals do not establish regional coverage and are not returned by the app. The model-selection predictions use all training blocks in each fold, while interval metrics use the separately fitted calibration model.
+
+All candidates are fitted on the pooled training data and saved together in the regional bundle. The web explorer lists those available candidates in its model picker; changing it refreshes the current location and affects only that browser request. Older single-model bundles show only their saved model. Rebuild physics-enabled features and run the hybrid training step to make all five choices available.
+
+The all-model winner is saved as a `regional_model` bundle and the app computes physics at inference only if its selected model needs it. Older `regional_baseline` bundles remain supported. The baseline-only command still compares only KNN and Random Forest.
 
 ## Artifacts and provenance
 
@@ -82,9 +88,9 @@ Evaluation uses measured tile centres only. Sparse production circles add grid s
 
 ## Run the trained model and repeat evaluation
 
-The training command evaluates first, then saves the all-data fit; rerun `python scripts/train_baselines.py` to repeat the comparison and create a new model/report run. There is no separate command that substitutes training-set predictions for the saved OOF report. Inspect `summary.csv` for regional metrics and `out_of_fold.csv` for individual held-out predictions and fold IDs.
+The training command evaluates first, then saves the all-data fit; rerun `python -m speedmap.cli.train_baselines` to repeat the comparison and create a new model/report run. There is no separate command that substitutes training-set predictions for the saved OOF report. Inspect `summary.csv` for regional metrics and `out_of_fold.csv` for individual held-out predictions and fold IDs.
 
-Start `python scripts/launch.py model` or follow [Run the Web UI](running_web_ui.md). `actual` mode also selects the registered regional model when present; `data` mode displays recorded regional measurements without evaluating a trained model. Data mode's observed averages are not a CV accuracy report.
+Start `python -m speedmap.cli.launch model` or follow [Run the Web UI](running_web_ui.md). `actual` mode also selects the registered regional model when present; `data` mode displays recorded regional measurements without evaluating a trained model. Data mode's observed averages are not a CV accuracy report.
 
 Regression checks, with the Python environment active:
 
@@ -92,14 +98,14 @@ Regression checks, with the Python environment active:
 python -m pytest tests/test_regional_training.py tests/test_knn.py tests/test_random_forest.py tests/test_area.py tests/test_features.py tests/test_predictor.py -q
 ```
 
-The separate `model.py` TensorFlow/Group Task 2 exercise consumes tile-quarter rows and writes `metrics.txt` and `model_results.png`; it does not create the regional app bundle or the spatial OOF comparison described here. Its `python model.py --check-data` validates inputs without TensorFlow. `python model.py --data-file data/ci/hanoi_train.csv --check-data` also checks the committed CI snapshot manifest. Refresh that snapshot with `python scripts/sync_ci_data.py` when intentionally updating the canonical data. The legacy individual baseline scripts likewise do not select or save the app's `regional` bundle.
+The separate `speedmap.cli.group_task_model` TensorFlow/Group Task 2 exercise consumes tile-quarter rows and writes `metrics.txt` and `model_results.png`; it does not create the regional app bundle or the spatial OOF comparison described here. Its `python -m speedmap.cli.group_task_model --check-data` validates inputs without TensorFlow. `python -m speedmap.cli.group_task_model --data-file data/ci/hanoi_train.csv --check-data` also checks the committed CI snapshot manifest. Refresh that snapshot with `python -m speedmap.cli.sync_ci_data` when intentionally updating the canonical data. The legacy individual baseline scripts likewise do not select or save the app's `regional` bundle.
 
 If you need to reproduce the separate TensorFlow exercise, use a compatible Python 3.11 environment, install its TensorFlow dependency, then run:
 
 ```sh
 python -m pip install tensorflow
-python model.py --check-data
-python model.py
+python -m speedmap.cli.group_task_model --check-data
+python -m speedmap.cli.group_task_model
 ```
 
 That exercise's split and metrics are separate from the spatial regional comparison. Its outputs do not replace `area_level_scores` on spatial out-of-fold predictions, and its trained network is not loaded by the regional Web UI.

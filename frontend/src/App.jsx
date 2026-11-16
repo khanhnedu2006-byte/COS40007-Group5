@@ -3,7 +3,7 @@ import SpeedMap from "./components/SpeedMap.jsx";
 import Sidebar from "./components/Sidebar.jsx";
 import Icon from "./components/Icon.jsx";
 import AboutPage from "./components/AboutPage.jsx";
-import { fetchBoundary, fetchHealth, fetchPrediction, fetchTowers } from "./api.js";
+import { fetchBoundary, fetchHealth, fetchModels, fetchPrediction, fetchTowers } from "./api.js";
 import { createHanoiArea, HANOI_ONLY_MESSAGE } from "./hanoi.js";
 
 export const PLACES = [
@@ -17,6 +17,9 @@ export default function App() {
   const [towers, setTowers] = useState([]);
   const [boundary, setBoundary] = useState(null);
   const [health, setHealth] = useState(null);
+  const [models, setModels] = useState([]);
+  const [selectedModel, setSelectedModel] = useState("");
+  const [modelsError, setModelsError] = useState("");
   const [showTowers, setShowTowers] = useState(false);
   const [showBoundary, setShowBoundary] = useState(true);
   const [result, setResult] = useState(null);
@@ -39,7 +42,7 @@ export default function App() {
   const toggleTowers = useCallback(() => setShowTowers((value) => !value), []);
   const toggleBoundary = useCallback(() => setShowBoundary((value) => !value), []);
 
-  const selectPoint = useCallback(async (lat, lon, name = "Selected location", move = false) => {
+  const selectPoint = useCallback(async (lat, lon, name = "Selected location", move = false, model = selectedModel) => {
     predictionRequest.current?.abort();
     const controller = new AbortController();
     predictionRequest.current = controller;
@@ -56,14 +59,14 @@ export default function App() {
     setLoading(true);
     if (move) setNavigation({ lat, lon, id: request });
     try {
-      const prediction = await fetchPrediction(lat, lon, controller.signal);
+      const prediction = await fetchPrediction(lat, lon, controller.signal, model);
       if (request === requestNumber.current) setResult(prediction);
     } catch (err) {
       if (err.name !== "AbortError" && request === requestNumber.current) setError(err.message);
     } finally {
       if (request === requestNumber.current) setLoading(false);
     }
-  }, [area]);
+  }, [area, selectedModel]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -71,6 +74,9 @@ export default function App() {
       setConnecting(true);
       setConnectionError("");
       setHealth(null);
+      setModels([]);
+      setSelectedModel("");
+      setModelsError("");
       setTowers([]);
       setBoundary(null);
       const responses = await Promise.allSettled([
@@ -78,7 +84,20 @@ export default function App() {
       ]);
       if (controller.signal.aborted) return;
       const [status, nodes, area] = responses;
-      if (status.status === "fulfilled") setHealth(status.value);
+      if (status.status === "fulfilled") {
+        setHealth(status.value);
+        if (status.value.mode === "model" && status.value.ready) {
+          try {
+            const choices = await fetchModels(controller.signal);
+            if (controller.signal.aborted) return;
+            setModels(choices.models);
+            setSelectedModel(choices.default || "");
+          } catch {
+            if (controller.signal.aborted) return;
+            setModelsError("Model choices could not be loaded. The default model will be used.");
+          }
+        }
+      }
       if (nodes.status === "fulfilled") setTowers(nodes.value);
       if (area.status === "fulfilled") setBoundary(area.value);
       const failed = responses.find((response) => response.status === "rejected");
@@ -100,6 +119,10 @@ export default function App() {
     setSelected(null);
     setError("");
     setReload((value) => value + 1);
+  };
+  const changeModel = (model) => {
+    setSelectedModel(model);
+    if (selected && !selected.outside) selectPoint(selected.lat, selected.lon, selected.name, false, model);
   };
   const demo = health?.mode === "demo";
   const dataMode = health?.mode === "data";
@@ -129,6 +152,7 @@ export default function App() {
         <Sidebar
           towerCount={towers.length} result={result} error={error} loading={loading}
           selected={selected} places={PLACES} onSelect={selectPoint}
+          models={models} selectedModel={selectedModel} onModelChange={changeModel} modelsError={modelsError}
           disabled={connecting || !health?.ready || !area} simulatedTowers={simulatedTowers}
           onRetry={selected && !selected.outside ? () => selectPoint(selected.lat, selected.lon, selected.name) : undefined}
         />

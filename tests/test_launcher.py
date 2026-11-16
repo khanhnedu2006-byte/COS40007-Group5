@@ -1,4 +1,5 @@
 """Startup mode, artifact and cleanup checks without downloading dependencies."""
+
 import json
 import struct
 import subprocess
@@ -7,14 +8,17 @@ from unittest.mock import Mock
 
 import pytest
 
-from scripts import launch
+from speedmap.cli import launch
 
 
 def runtime_info(root):
     return {
-        "version": list(sys.version_info[:3]), "base": sys.base_prefix,
-        "prefix": str(root / ".venv"), "executable": str(root / ".venv" / "Scripts" / "python.exe"),
-        "bits": struct.calcsize("P") * 8, "abi": sys.implementation.cache_tag,
+        "version": list(sys.version_info[:3]),
+        "base": sys.base_prefix,
+        "prefix": str(root / ".venv"),
+        "executable": str(root / ".venv" / "Scripts" / "python.exe"),
+        "bits": struct.calcsize("P") * 8,
+        "abi": sys.implementation.cache_tag,
     }
 
 
@@ -33,7 +37,9 @@ def test_environment_matches_the_current_python_and_project(tmp_path):
     assert launch.compatible_environment(tmp_path, info)
     assert not launch.compatible_environment(tmp_path, None)
     assert not launch.compatible_environment(tmp_path, {**info, "version": [3, 10, 0]})
-    assert not launch.compatible_environment(tmp_path, {**info, "prefix": str(tmp_path / "another-project")})
+    assert not launch.compatible_environment(
+        tmp_path, {**info, "prefix": str(tmp_path / "another-project")}
+    )
     (env / "pyvenv.cfg").write_text("version = 3.10.0\n")
     assert not launch.compatible_environment(tmp_path, info)
 
@@ -54,7 +60,11 @@ def test_redirected_environment_is_not_moved(tmp_path, monkeypatch):
     original_resolve = type(env).resolve
 
     def redirect(path, *args, **kwargs):
-        return tmp_path.parent / "outside-project" if path == env else original_resolve(path, *args, **kwargs)
+        return (
+            tmp_path.parent / "outside-project"
+            if path == env
+            else original_resolve(path, *args, **kwargs)
+        )
 
     monkeypatch.setattr(type(env), "resolve", redirect)
     with pytest.raises(RuntimeError, match="redirected"):
@@ -62,8 +72,14 @@ def test_redirected_environment_is_not_moved(tmp_path, monkeypatch):
     assert env.is_dir()
 
 
-def test_broken_copied_environment_is_recreated_with_selected_python(tmp_path, monkeypatch):
-    python = tmp_path / ".venv" / ("Scripts/python.exe" if launch.os.name == "nt" else "bin/python")
+def test_broken_copied_environment_is_recreated_with_selected_python(
+    tmp_path, monkeypatch
+):
+    python = (
+        tmp_path
+        / ".venv"
+        / ("Scripts/python.exe" if launch.os.name == "nt" else "bin/python")
+    )
     python.parent.mkdir(parents=True)
     python.touch()
     (tmp_path / ".venv" / "pyvenv.cfg").write_text("version = 3.10.0\n")
@@ -75,7 +91,9 @@ def test_broken_copied_environment_is_recreated_with_selected_python(tmp_path, m
         assert command[:3] == [sys.executable, "-m", "venv"]
         python.parent.mkdir(parents=True)
         python.touch()
-        (tmp_path / ".venv" / "pyvenv.cfg").write_text(f"version = {sys.version.split()[0]}\n")
+        (tmp_path / ".venv" / "pyvenv.cfg").write_text(
+            f"version = {sys.version.split()[0]}\n"
+        )
 
     monkeypatch.setattr(launch, "run_setup", create)
     executable, result = launch.ensure_environment(tmp_path)
@@ -83,12 +101,20 @@ def test_broken_copied_environment_is_recreated_with_selected_python(tmp_path, m
     assert len(list(tmp_path.glob(".venv.backup-*"))) == 1
 
 
-def test_dependency_cache_cannot_be_copied_between_python_versions_or_projects(tmp_path):
+def test_dependency_cache_cannot_be_copied_between_python_versions_or_projects(
+    tmp_path,
+):
     requirement = tmp_path / "requirements.txt"
     requirement.write_text("fastapi\n")
-    first = launch.environment_fingerprint(tmp_path, {"version": [3, 11, 9]}, requirement)
-    assert first != launch.environment_fingerprint(tmp_path, {"version": [3, 14, 7]}, requirement)
-    assert first != launch.environment_fingerprint(tmp_path / "another-project", {"version": [3, 11, 9]}, requirement)
+    first = launch.environment_fingerprint(
+        tmp_path, {"version": [3, 11, 9]}, requirement
+    )
+    assert first != launch.environment_fingerprint(
+        tmp_path, {"version": [3, 14, 7]}, requirement
+    )
+    assert first != launch.environment_fingerprint(
+        tmp_path / "another-project", {"version": [3, 11, 9]}, requirement
+    )
 
 
 def test_missing_real_model_is_reported_instead_of_using_demo(tmp_path):
@@ -105,8 +131,11 @@ def test_explicit_model_run_does_not_need_latest_pointer(tmp_path):
     towers = root / "data" / "interim" / "hanoi_towers.csv"
     towers.parent.mkdir(parents=True)
     towers.touch()
-    for relative in ["data/interim/hanoi_cells.csv", "data/processed/hanoi_tiles.csv",
-                     "data/reference/hanoi_context_grid.npz"]:
+    for relative in [
+        "data/interim/hanoi_cells.csv",
+        "data/processed/hanoi_tiles.csv",
+        "data/reference/hanoi_context_grid.npz",
+    ]:
         path = root / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.touch()
@@ -170,7 +199,11 @@ def test_startup_failure_stops_already_started_backend(tmp_path, monkeypatch):
     monkeypatch.setattr(launch, "prepare", lambda *args: ("python", "vite.js"))
     backend = Mock()
     backend.poll.return_value = None
-    monkeypatch.setattr(launch.subprocess, "Popen", Mock(side_effect=[backend, OSError("frontend failed")]))
+    monkeypatch.setattr(
+        launch.subprocess,
+        "Popen",
+        Mock(side_effect=[backend, OSError("frontend failed")]),
+    )
     monkeypatch.setattr(launch, "wait_ready", lambda *args, **kwargs: None)
     with pytest.raises(OSError, match="frontend failed"):
         launch.launch("demo", no_browser=True)
@@ -178,16 +211,22 @@ def test_startup_failure_stops_already_started_backend(tmp_path, monkeypatch):
 
 
 def test_reused_frontend_never_has_its_dependencies_reinstalled(tmp_path, monkeypatch):
-    monkeypatch.setattr(launch.subprocess, "check_output", lambda *args, **kwargs: "v22.17.0")
+    monkeypatch.setattr(
+        launch.subprocess, "check_output", lambda *args, **kwargs: "v22.17.0"
+    )
     setup = Mock()
     monkeypatch.setattr(launch, "run_setup", setup)
-    launch.prepare(tmp_path, "demo", "node", "npm", setup_backend=False, setup_frontend=False)
+    launch.prepare(
+        tmp_path, "demo", "node", "npm", setup_backend=False, setup_frontend=False
+    )
     setup.assert_not_called()
 
 
 def test_waiting_for_failed_model_does_not_open_a_demo(monkeypatch, tmp_path):
     process = Mock()
     process.poll.return_value = None
-    monkeypatch.setattr(launch, "health", lambda *args: json.loads('{"mode":"model","ready":false}'))
+    monkeypatch.setattr(
+        launch, "health", lambda *args: json.loads('{"mode":"model","ready":false}')
+    )
     with pytest.raises(RuntimeError, match="could not load"):
         launch.wait_ready(process, launch.API_URL, "model", tmp_path / "model.log")

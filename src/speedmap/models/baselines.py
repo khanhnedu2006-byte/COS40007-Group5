@@ -3,6 +3,7 @@
 Baseline 1, KNN: location only (input in degrees, haversine distance).
 Baseline 2, Random Forest: same features as the main model EXCEPT theory_mbps (no physics).
 """
+
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
@@ -84,9 +85,7 @@ class KNNBaseline(BaseSpeedModel):
 
         speeds = locations["weighted_target"] / locations["weight"]
         # Scikit-learn's haversine metric expects [latitude, longitude] radians.
-        coordinates_rad = np.radians(
-            locations[["latitude", "longitude"]].to_numpy()
-        )
+        coordinates_rad = np.radians(locations[["latitude", "longitude"]].to_numpy())
         self.model.fit(coordinates_rad, speeds.to_numpy())
         return self
 
@@ -98,9 +97,7 @@ class KNNBaseline(BaseSpeedModel):
         @return: Predicted download speeds in Mbps.
         @rtype: numpy.ndarray
         """
-        coordinates_rad = np.radians(
-            X[["latitude", "longitude"]].to_numpy(dtype=float)
-        )
+        coordinates_rad = np.radians(X[["latitude", "longitude"]].to_numpy(dtype=float))
         return self.model.predict(coordinates_rad)
 
     def get_params(self) -> dict:
@@ -165,9 +162,7 @@ class RandomForestBaseline(BaseSpeedModel):
         features = self._features(X)
         targets = np.asarray(y, dtype=float)
         weights = (
-            None
-            if sample_weight is None
-            else np.asarray(sample_weight, dtype=float)
+            None if sample_weight is None else np.asarray(sample_weight, dtype=float)
         )
         if len(targets) != len(features):
             raise ValueError("X and y must have the same number of rows")
@@ -180,14 +175,18 @@ class RandomForestBaseline(BaseSpeedModel):
         ):
             raise ValueError("sample_weight values must be finite and non-negative")
 
-        self.model.fit(self.imputer.fit_transform(features), targets, sample_weight=weights)
+        self.model.fit(
+            self.imputer.fit_transform(features), targets, sample_weight=weights
+        )
         return self
 
     def _features(self, X: pd.DataFrame) -> pd.DataFrame:
         features = X[self.columns]
         required = [c for c in self.columns if c not in config.CONTEXT_FEATURES]
         if not np.isfinite(features[required].to_numpy(dtype=float)).all():
-            raise ValueError("Random Forest required features must be finite and non-missing")
+            raise ValueError(
+                "Random Forest required features must be finite and non-missing"
+            )
         if np.isinf(features.to_numpy(dtype=float)).any():
             raise ValueError("Random Forest features must not contain infinity")
         return features

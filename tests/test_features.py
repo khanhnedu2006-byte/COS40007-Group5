@@ -1,4 +1,5 @@
 """Run: pytest tests/test_features.py   (Person 1)"""
+
 import numpy as np
 import pytest
 import pandas as pd
@@ -7,30 +8,42 @@ from speedmap import config
 from speedmap.features.spatial import TowerIndex
 from speedmap.features.point_features import PointFeaturizer
 from speedmap.features.tower_features import tower_features
-from speedmap.features.build import build_tile_table, build_training_table, validate_training_table
+from speedmap.features.build import (
+    build_tile_table,
+    build_training_table,
+    validate_training_table,
+)
 
-TOWERS = pd.DataFrame({
-    "tower_id": [1, 2, 3],
-    "latitude": [21.0285, 21.0300, 21.1000],
-    "longitude": [105.8542, 105.8560, 105.9000],
-})
+TOWERS = pd.DataFrame(
+    {
+        "tower_id": [1, 2, 3],
+        "latitude": [21.0285, 21.0300, 21.1000],
+        "longitude": [105.8542, 105.8560, 105.9000],
+    }
+)
 
 
-CELLS = pd.DataFrame({
-    "latitude": [21.0285, 21.0290, 21.0300],
-    "longitude": [105.8542, 105.8545, 105.8560],
-    "operator": [1, 2, 4],
-})
-TILES = pd.DataFrame({
-    "quadkey": ["a", "b"],
-    "latitude": [21.0290, 21.0400],
-    "longitude": [105.8550, 105.8600],
-    "devices": [50, 10],
-})
+CELLS = pd.DataFrame(
+    {
+        "latitude": [21.0285, 21.0290, 21.0300],
+        "longitude": [105.8542, 105.8545, 105.8560],
+        "operator": [1, 2, 4],
+    }
+)
+TILES = pd.DataFrame(
+    {
+        "quadkey": ["a", "b"],
+        "latitude": [21.0290, 21.0400],
+        "longitude": [105.8550, 105.8600],
+        "devices": [50, 10],
+    }
+)
 
 
 def test_tower_columns():
-    feats = tower_features(np.array([21.0285]), np.array([105.8542]), TowerIndex(TOWERS))
+    feats = tower_features(
+        np.array([21.0285]), np.array([105.8542]), TowerIndex(TOWERS)
+    )
     assert list(feats.columns) == ["latitude", "longitude"] + config.TOWER_FEATURES
 
 
@@ -50,7 +63,9 @@ def test_activity_counts_neighbours_not_self():
 
 
 def test_nearest_distance_is_small_next_to_tower():
-    feats = tower_features(np.array([21.0285]), np.array([105.8542]), TowerIndex(TOWERS))
+    feats = tower_features(
+        np.array([21.0285]), np.array([105.8542]), TowerIndex(TOWERS)
+    )
     assert feats["dist_nearest_tower_m"].iloc[0] < 5
 
 
@@ -67,20 +82,31 @@ def test_baseline_tables_skip_unfinished_physics_and_keep_feature_contract(monke
     def unexpected_physics(*args):
         raise AssertionError("Baseline feature generation must not call physics")
 
-    monkeypatch.setattr("speedmap.features.tower_features.theory_for_points", unexpected_physics)
-    clean = pd.DataFrame({
-        "quadkey": ["001", "001", "002"], "latitude": [21.029, 21.029, 21.04],
-        "longitude": [105.855, 105.855, 105.86], "quarter": ["2026-2", "2026-3", "2026-3"],
-        "quarter_index": [8105, 8106, 8106], "download_mbps": [80., 120., 50.],
-        "upload_mbps": [20., 30., 15.], "latency_ms": [20., 18., 30.],
-        "tests": [10, 20, 5], "devices": [5, 10, 3],
-    })
+    monkeypatch.setattr(
+        "speedmap.features.tower_features.theory_for_points", unexpected_physics
+    )
+    clean = pd.DataFrame(
+        {
+            "quadkey": ["001", "001", "002"],
+            "latitude": [21.029, 21.029, 21.04],
+            "longitude": [105.855, 105.855, 105.86],
+            "quarter": ["2026-2", "2026-3", "2026-3"],
+            "quarter_index": [8105, 8106, 8106],
+            "download_mbps": [80.0, 120.0, 50.0],
+            "upload_mbps": [20.0, 30.0, 15.0],
+            "latency_ms": [20.0, 18.0, 30.0],
+            "tests": [10, 20, 5],
+            "devices": [5, 10, 3],
+        }
+    )
     with warnings.catch_warnings():
         warnings.filterwarnings("error", message=".*(physics|theory_mbps).*")
         tiles = build_tile_table(clean, TOWERS, CELLS, include_physics=False)
         train = build_training_table(clean, TOWERS, CELLS, tiles, include_physics=False)
         validate_training_table(tiles, include_physics=False)
-        feats = PointFeaturizer(TOWERS, CELLS, tiles, include_physics=False).features([21.0285], [105.8542])
+        feats = PointFeaturizer(TOWERS, CELLS, tiles, include_physics=False).features(
+            [21.0285], [105.8542]
+        )
     assert len(tiles) == 2 and len(train) == 3
     assert tiles["quadkey"].tolist() == ["001", "002"]
     assert list(feats.columns) == config.FEATURE_COLUMNS
@@ -94,25 +120,29 @@ def test_baseline_tables_skip_unfinished_physics_and_keep_feature_contract(monke
         validate_training_table(tiles)
 
 
-def test_explicit_physics_features_still_report_unfinished_module(monkeypatch):
-    def unfinished(*args):
-        raise NotImplementedError
-
-    monkeypatch.setattr("speedmap.features.tower_features.theoretical_speed_mbps", unfinished)
-    with pytest.warns(UserWarning, match="physics.link_budget is not implemented"):
-        feats = tower_features(np.array([21.0285]), np.array([105.8542]), TowerIndex(TOWERS))
-    assert feats["theory_mbps"].isna().all()
+def test_explicit_physics_features_are_finite():
+    feats = tower_features(
+        np.array([21.0285]), np.array([105.8542]), TowerIndex(TOWERS)
+    )
+    assert np.isfinite(feats["theory_mbps"]).all()
+    assert (feats["theory_mbps"] >= 0).all()
 
 
 @pytest.mark.parametrize("include_physics", [False, True])
 def test_pipeline_physics_is_an_explicit_opt_in(monkeypatch, include_physics):
     import sys
 
-    from scripts import run_pipeline
+    from speedmap.cli import run_pipeline
 
     called = []
-    monkeypatch.setattr(run_pipeline, "STEPS", {"features": lambda **kwargs: called.append(kwargs)})
-    monkeypatch.setattr(sys, "argv", ["run_pipeline.py", "--step", "features"]
-                        + (["--include-physics"] if include_physics else []))
+    monkeypatch.setattr(
+        run_pipeline, "STEPS", {"features": lambda **kwargs: called.append(kwargs)}
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["run_pipeline.py", "--step", "features"]
+        + (["--include-physics"] if include_physics else []),
+    )
     run_pipeline.main()
     assert called == [{"include_physics": include_physics}]

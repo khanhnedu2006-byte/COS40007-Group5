@@ -35,10 +35,10 @@ jobs:
         run: pip install -e . --no-deps
 
       - name: Verify dataset snapshot provenance
-        run: python model.py --data-file data/ci/hanoi_train.csv --check-data
+        run: python -m speedmap.cli.group_task_model --data-file data/ci/hanoi_train.csv --check-data
 
       - name: Train model
-        run: python model.py --data-file data/ci/hanoi_train.csv
+        run: python -m speedmap.cli.group_task_model --data-file data/ci/hanoi_train.csv
 
       - name: Upload results
         uses: actions/upload-artifact@v4

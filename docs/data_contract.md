@@ -24,9 +24,9 @@ One row = one Ookla tile (about 610 m) in one quarter.
 | population_500m, population_1km | float | people living within ~500 m / 1 km (WorldPop 2020); NaN until the context grid is built |
 | builtup_500m, builtup_1km, trees_1km, cropland_1km, water_1km | float | share of land (0–1) by ESA WorldCover 2021 class |
 | elevation_m, slope_deg | float | Copernicus DEM 30 m, averaged to ~100 m |
-| roads_km_1km, pois_1km | float | km of major roads (OpenStreetMap) and number of places such as shops, restaurants, offices within ~1 km (Overture Maps places 2026-10-21, 404,637 places; `scripts/fetch_places.py`) |
+| roads_km_1km, pois_1km | float | km of major roads (OpenStreetMap) and number of places such as shops, restaurants, offices within ~1 km (Overture Maps places 2026-10-21, 404,637 places; `src/speedmap/cli/fetch_places.py`) |
 | towers_500m, towers_1km | int | number of towers within the radius |
-| theory_mbps | float | 3GPP theoretical speed; empty until the physics module (T-06) is finished, then rebuild the table |
+| theory_mbps | float | 3GPP theoretical speed; empty when feature generation skips physics |
 | sample_weight | float | training weight, e.g. sqrt(tests) |
 | block_id | int | 2 km block, used as CV groups |
 | quality_level | str | Poor / Fair / Good / Excellent from download_mbps |
@@ -35,7 +35,7 @@ Model input = `config.FEATURE_COLUMNS`. All features are built by `speedmap.feat
 from hanoi_towers.csv, hanoi_cells.csv and hanoi_tiles.csv (activity uses device counts only, never speeds).
 The backend must use the same featurizer for clicked points.
 
-Rebuild everything from the raw files: `python scripts/run_pipeline.py --step towers` then `--step features`.
+Rebuild everything from the raw files: `python -m speedmap.cli.run_pipeline --step towers` then `--step features`.
 
 Only tiles **inside the Hanoi administrative boundary** are kept (`data/reference/hanoi_boundary.geojson`, geoBoundaries, CC BY 4.0).
 
@@ -58,8 +58,8 @@ Less noisy than one tile in one quarter; recommended for training and for the ma
 # `data/reference/hanoi_context_grid.npz`
 
 Context layers on a 0.001° (~110 m) grid over the Hanoi box: population, builtup, trees, cropland, water, elevation_m,
-slope_deg, roads_km, pois. Built by `python scripts/run_pipeline.py --step context` from the files downloaded by
-`scripts/fetch_context_data.py`. Small enough to commit; the backend reads it with numpy only.
+slope_deg, roads_km, pois. Built by `python -m speedmap.cli.run_pipeline --step context` from the files downloaded by
+`src/speedmap/cli/fetch_context_data.py`. Small enough to commit; the backend reads it with numpy only.
 Windows are squares of ±radius around the point (e.g. "1km" = about 2 km x 2 km).
 
 # `data/interim/hanoi_cells.csv`
@@ -74,7 +74,7 @@ OSM masts (`tower:type=communication`) are added only when more than 200 m from 
 Positions are **estimated from phone measurements** (they cluster along main roads), not official site locations.
 
 # Current version (8 Nov 2026)
-Rebuild: `python scripts/run_pipeline.py --step towers` then `--step features`.
+Rebuild: `python -m speedmap.cli.run_pipeline --step towers` then `--step features`.
 - hanoi_train.csv: 24,679 rows, 6,250 tiles inside Hanoi, quarters 2024-4 to 2026-3
 - hanoi_tiles.csv: 5,212 tiles pooled over 2025-4 to 2026-3; reliability low 1,874 / medium 1,710 / high 1,628
 - hanoi_cells.csv: 3,317 cells
@@ -85,11 +85,11 @@ Rebuild: `python scripts/run_pipeline.py --step towers` then `--step features`.
 
 The app's training entrypoint now consumes **hanoi_tiles.csv**, with one pooled row per tile over the latest four quarters, rather than the tile-quarter table. Rebuild towers/cells and both feature tables before training; older processed files lack the current infrastructure, activity and context columns. The rebuilt pooled table has **5,212 rows, 40 columns and 831 spatial blocks**, spanning 2025 Q4–2026 Q3.
 
-The feature CLI skips physics by default: `theory_mbps` is intentionally NaN and the remaining features and schema are unchanged. Use `--step features --include-physics` to attempt the optional theory feature for hybrid work. The Python table builders and PointFeaturizer accept `include_physics=False` for baseline callers; their default retains the physics-enabled behavior used by existing notebooks. The validator accepts the same flag, without relaxing validation of required non-physics columns.
+The feature CLI skips physics by default: `theory_mbps` is intentionally NaN and the remaining features and schema are unchanged. Use `--step features --include-physics` to calculate the theory feature for hybrid work. The Python table builders and PointFeaturizer accept `include_physics=False` for baseline callers; their default retains the physics-enabled behavior used by existing notebooks. The validator accepts the same flag, without relaxing validation of required non-physics columns.
 
 KNN uses coordinates only. Random Forest requires the ordered `config.FEATURE_COLUMNS` except `theory_mbps`. Optional context columns may contain NaN: its saved imputer fills them with medians learned only from each training fold, or zero for a wholly missing column. Missing required non-context features are errors. `quarter_index`, quality labels, test/device counts and measured upload/latency are not direct model inputs. Test counts weight KNN coordinate aggregation, Random Forest training (`sqrt(tests)`), and regional pooling (raw test counts).
 
-The shared PointFeaturizer uses the same processed tower/cell tables, pooled device activity and reference context grid for training and inference. Baselines exclude the unfinished physics column. Static features and unlabeled activity counts are available across held-out blocks; target speeds never enter those features.
+The shared PointFeaturizer uses the same processed tower/cell tables, pooled device activity and reference context grid for training and inference. Baselines exclude the physics column; hybrid and physics-only models require it. Static features and unlabeled activity counts are available across held-out blocks; target speeds never enter those features.
 
 The regional bundle is saved under `artifacts/models/regional/<run>/` with the selected model, ordered input columns, training settings/period, evaluation metrics and SHA-256 input fingerprints. The [training guide](training.md) describes the matching out-of-fold report files. Keep processed inputs and artifacts from the same run together, and read quadkeys as strings. Generated input files and saved models are excluded from Git.
 

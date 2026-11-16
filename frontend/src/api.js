@@ -27,4 +27,9 @@ async function request(path, signal) {
 export const fetchHealth = (signal) => request("/health", signal);
 export const fetchTowers = (signal) => request("/towers", signal);
 export const fetchBoundary = (signal) => request("/boundary", signal);
-export const fetchPrediction = (lat, lon, signal) => request(`/predict?${new URLSearchParams({ lat, lon })}`, signal);
+export const fetchModels = (signal) => request("/models", signal);
+export const fetchPrediction = (lat, lon, signal, model) => {
+  const params = new URLSearchParams({ lat, lon });
+  if (model) params.set("model", model);
+  return request(`/predict?${params}`, signal);
+};

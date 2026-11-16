@@ -3,6 +3,7 @@
 Square windows on a ~100 m grid (fast enough for every click). If the grid file or a layer is
 missing, the feature is NaN (XGBoost handles missing values).
 """
+
 import warnings
 
 import numpy as np
@@ -42,7 +43,12 @@ class ContextGrid:
             return None
         npz = np.load(path)
         lat_max, lon_min, res = npz["_meta"]
-        return cls({k: npz[k] for k in npz.files if k != "_meta"}, float(lat_max), float(lon_min), float(res))
+        return cls(
+            {k: npz[k] for k in npz.files if k != "_meta"},
+            float(lat_max),
+            float(lon_min),
+            float(res),
+        )
 
     def _tables(self, layer):
         # Bảng tổng tích luỹ (summed-area table): tổng trong một ô vuông bất kỳ chỉ cần 4 phép tra
@@ -50,15 +56,25 @@ class ContextGrid:
             a = self.layers[layer].astype("float64")
             valid = ~np.isnan(a)
             pad = lambda x: np.pad(np.cumsum(np.cumsum(x, 0), 1), ((1, 0), (1, 0)))
-            self._sat[layer] = (pad(np.where(valid, a, 0.0)), pad(valid.astype("float64")))
+            self._sat[layer] = (
+                pad(np.where(valid, a, 0.0)),
+                pad(valid.astype("float64")),
+            )
         return self._sat[layer]
 
     def window(self, layer, lat, lon, radius_m, how):
         rows, cols = self.shape
-        r = np.floor((self.lat_max - np.asarray(lat, dtype=float)) / self.res).astype(int)
-        c = np.floor((np.asarray(lon, dtype=float) - self.lon_min) / self.res).astype(int)
+        r = np.floor((self.lat_max - np.asarray(lat, dtype=float)) / self.res).astype(
+            int
+        )
+        c = np.floor((np.asarray(lon, dtype=float) - self.lon_min) / self.res).astype(
+            int
+        )
         inside = (r >= 0) & (r < rows) & (c >= 0) & (c < cols)
-        ky, kx = int(round(radius_m / self.cell_y_m)), int(round(radius_m / self.cell_x_m))
+        ky, kx = (
+            int(round(radius_m / self.cell_y_m)),
+            int(round(radius_m / self.cell_x_m)),
+        )
         r0, r1 = np.clip(r - ky, 0, rows), np.clip(r + ky + 1, 0, rows)
         c0, c1 = np.clip(c - kx, 0, cols), np.clip(c + kx + 1, 0, cols)
         s, n = self._tables(layer)
@@ -80,5 +96,7 @@ def context_features(lat, lon, grid) -> pd.DataFrame:
         else:
             out[name] = np.round(grid.window(layer, lat, lon, radius, how), 4)
     if grid is None:
-        warnings.warn("context grid not found: run scripts/fetch_context_data.py then run_pipeline.py --step context")
+        warnings.warn(
+            "context grid not found: run python -m speedmap.cli.fetch_context_data then python -m speedmap.cli.run_pipeline --step context"
+        )
     return pd.DataFrame(out)

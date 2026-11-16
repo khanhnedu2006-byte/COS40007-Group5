@@ -1,8 +1,9 @@
 """Application tests run without raw datasets or a trained model."""
+
 import pytest
 from fastapi.testclient import TestClient
 
-from backend.main import create_app
+from speedmap.api.main import create_app
 
 
 @pytest.fixture(scope="module")
@@ -20,7 +21,9 @@ def test_demo_health_identifies_fixture_data(client):
     assert status["tower_data_source"] in {"dataset", "simulated"}
 
 
-@pytest.mark.parametrize("lat,lon", [(21.0285, 105.8542), (21.0589, 105.8233), (20.9719, 105.7772)])
+@pytest.mark.parametrize(
+    "lat,lon", [(21.0285, 105.8542), (21.0589, 105.8233), (20.9719, 105.7772)]
+)
 def test_inside_points_return_consistent_complete_predictions(client, lat, lon):
     response = client.get("/api/predict", params={"lat": lat, "lon": lon})
     assert response.status_code == 200
@@ -31,11 +34,23 @@ def test_inside_points_return_consistent_complete_predictions(client, lat, lon):
     assert result["area_radius_m"] == 500
     assert result["area_points"] == result["area_grid_points"] > 1
     assert result["area_ookla_tiles"] == 0
-    assert all(result.get(key) is None for key in ("download_mbps", "upload_mbps", "latency_ms", "download_low", "theory_mbps"))
+    assert all(
+        result.get(key) is None
+        for key in (
+            "download_mbps",
+            "upload_mbps",
+            "latency_ms",
+            "download_low",
+            "theory_mbps",
+        )
+    )
     distances = [tower["distance_m"] for tower in result["nearest_towers"]]
     assert len(distances) == 3 and distances == sorted(distances)
     from speedmap import config
-    assert result["area_quality_level"] == config.quality_level(result["area_download_mbps"])
+
+    assert result["area_quality_level"] == config.quality_level(
+        result["area_download_mbps"]
+    )
 
 
 @pytest.mark.parametrize("lat,lon", [(10.7769, 106.7009), (21.3089, 105.6049)])
@@ -45,10 +60,17 @@ def test_outside_polygon_is_rejected_even_inside_old_bounding_box(client, lat, l
     assert "outside Hanoi" in response.json()["detail"]
 
 
-@pytest.mark.parametrize("params", [
-    {}, {"lat": "text", "lon": 105}, {"lat": 91, "lon": 105},
-    {"lat": 21, "lon": 181}, {"lat": "nan", "lon": 105}, {"lat": 21, "lon": "inf"},
-])
+@pytest.mark.parametrize(
+    "params",
+    [
+        {},
+        {"lat": "text", "lon": 105},
+        {"lat": 91, "lon": 105},
+        {"lat": 21, "lon": 181},
+        {"lat": "nan", "lon": 105},
+        {"lat": 21, "lon": "inf"},
+    ],
+)
 def test_invalid_coordinates_are_validation_errors(client, params):
     assert client.get("/api/predict", params=params).status_code == 422
 
@@ -90,3 +112,40 @@ def test_allowed_local_origin_can_call_api(client):
 def test_invalid_mode_fails_explicitly():
     with pytest.raises(ValueError, match="SPEEDMAP_MODE"):
         create_app("automatic")
+
+
+def test_model_choices_are_per_request_and_validate_names(monkeypatch):
+    from fastapi import HTTPException
+    from speedmap.api.demo import DemoPredictor
+    from speedmap import config
+
+    class ModelService:
+        def __init__(self):
+            self.demo = DemoPredictor()
+
+        def tower_list(self):
+            return self.demo.tower_list()
+
+        def available_models(self):
+            return {"default": "knn", "models": ["knn", "hybrid"]}
+
+        def predict(self, lat, lon, model_name=None):
+            return {
+                **self.demo.predict(lat, lon),
+                "source": "model",
+                "model_name": model_name or "knn",
+            }
+
+    monkeypatch.setattr(config, "inside_hanoi", lambda *_: True)
+    app = create_app("model", ModelService())
+    app.state.predictor = ModelService()
+    endpoints = {
+        route.path: route.endpoint for route in app.routes if hasattr(route, "endpoint")
+    }
+    assert endpoints["/api/models"]() == {"default": "knn", "models": ["knn", "hybrid"]}
+    predict = endpoints["/api/predict"]
+    assert predict(21.02, 105.85, "hybrid").model_name == "hybrid"
+    assert predict(21.02, 105.85, None).model_name == "knn"
+    with pytest.raises(HTTPException) as error:
+        predict(21.02, 105.85, "missing")
+    assert error.value.status_code == 422
