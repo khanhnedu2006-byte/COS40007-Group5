@@ -4,7 +4,7 @@ from speedmap.models.baselines import (
     KNNBaseline,
     RandomForestBaseline as _RandomForestBaseline,
 )
-from speedmap.models.conformal import ConformalInterval
+from speedmap.models.conformal import ConformalInterval as ConformalInterval
 from speedmap.models.hybrid import HybridModel, PhysicsOnly, XGBoostOnly
 
 

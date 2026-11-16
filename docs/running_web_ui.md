@@ -4,12 +4,16 @@ Hanoi Signal has a FastAPI backend on port **8000** and a React/Vite frontend on
 
 ## Choose the operating mode
 
-- **`actual` (default):** selects the registered regional model if its `LATEST` pointer or a pinned run exists; otherwise selects recorded-data mode. A broken registered model reports an error instead of silently switching modes.
-- **`data`:** uses current recorded Ookla tiles and tower locations without a trained model. Needs `data/interim/hanoi_towers.csv` and `data/processed/hanoi_tiles.csv`. The main reading is the test-weighted regional recorded speed, where observed tiles exist within 500 m. Regions without observations are identified as unavailable.
-- **`model`:** strictly loads the saved regional baseline. Requires a model from [the training guide](training.md), matching processed towers/cells/tiles, and reference data. Missing, stale or incompatible artifacts leave the API unavailable.
-- **`demo`:** generates simulated regional speeds without a trained model. Uses the local tower table when available; otherwise uses simulated towers. An invalid existing tower file is reported rather than silently replaced. Simulated speeds are labeled separately from tower provenance.
+The mode controls where the displayed speed comes from. Set `SPEEDMAP_MODE` before starting the API, or pass the mode as the launcher's argument. These values are available:
 
-For real-data preparation, follow [Fetch and prepare data](fetching_data.md). Model output is typical download performance within **500 m** of a chosen centre. It is not a live speed test or an operator-specific prediction.
+- **`demo` — simulated speeds.** Use this to explore the interface without downloaded observations or a trained model. Speeds are generated for demonstration and are not measurements or model predictions. The app uses `data/interim/hanoi_towers.csv` for tower locations if it exists; otherwise it generates simulated locations. An invalid existing tower file leaves the predictor unavailable rather than being replaced silently.
+- **`data` — recorded observations.** Use this to inspect Ookla measurements without training a model. The regional value is a test-weighted average of observed tiles within 500 m; a region without observations is unavailable. Prepare `data/processed/hanoi_tiles.csv` and `data/interim/hanoi_towers.csv` as described in [Fetch and prepare data](fetching_data.md). Recorded speeds describe the collected period, not a live measurement.
+- **`model` — trained predictions.** Use this to serve a saved regional model and estimate typical performance around a location. Requires a trained model bundle, matching processed tiles, towers and cells, reference data, and compatible model dependencies; follow [the training guide](training.md). The default output radius is 500 m, though a pinned run can use its saved radius. Missing, incompatible, or stale inputs leave the service unavailable.
+- **`actual` — automatic selection (default).** Use this when you want the app to choose between the real-data modes at startup. If `SPEEDMAP_MODEL_RUN` is set or the selected model has a `LATEST` file, it chooses `model`; otherwise it chooses `data`. It checks whether a run is selected, not whether that run can load successfully. If the chosen model is broken, the predictor remains unavailable and does not fall back to data or demo. If no model is selected, `data` still requires its prepared inputs.
+
+`SPEEDMAP_MODEL_NAME` selects the model directory and defaults to `regional`; `SPEEDMAP_MODEL_RUN` pins a run within that directory. Without a pin, model mode reads its `LATEST` file. Check `/api/health` after startup: `mode` shows the resolved mode (`demo`, `data`, or `model`), `ready` indicates whether it loaded, and `model_loaded` indicates a loaded model. An unavailable predictor causes prediction requests to return HTTP 503; check the backend logs for the cause.
+
+None of these modes provides a live speed test or an operator-specific result.
 
 ## Option A: launch both services together
 
@@ -20,13 +24,13 @@ On Windows, double-click:
 
 The launchers create/check the local environment, install dependencies when needed, start both services, verify readiness and open the browser. First setup needs internet access. An incompatible copied environment is preserved as a backup and recreated.
 
-Alternatively, from a terminal on any supported platform:
+Alternatively, after installing the package in an environment as shown in Option B, run this from a terminal on any supported platform:
 
 ```sh
 python -m speedmap.cli.launch actual
 ```
 
-Replace `actual` with `data`, `model`, or `demo` to select a mode explicitly. Use the Python interpreter available on your system (`python3` on some Linux/macOS installations, or `py -3` on Windows).
+Replace `actual` with `data`, `model`, or `demo` to select a mode explicitly. Use the interpreter in the environment where the package is installed. The Windows batch files can bootstrap the environment before the package is installed.
 
 Keep the launcher console open. Press **Enter** there to stop services it started. It can reuse ready services of the same resolved mode; stop existing services before switching modes. Startup logs are under `.run/`.
 
@@ -60,7 +64,9 @@ $env:SPEEDMAP_MODE = 'demo'
 python -m uvicorn speedmap.api.main:app --host 127.0.0.1 --port 8000
 ```
 
-Change the mode to `actual`, `data`, or `model` after preparing the corresponding inputs. If `SPEEDMAP_MODE` is unset, manual startup defaults to `actual`.
+To switch modes, stop the API, set `SPEEDMAP_MODE` to a value described in [Choose the operating mode](#choose-the-operating-mode), and start the API again. For example, use `SPEEDMAP_MODE=data python -m uvicorn speedmap.api.main:app --host 127.0.0.1 --port 8000` on Linux/macOS, or set `$env:SPEEDMAP_MODE = 'data'` in PowerShell before running the Uvicorn command. If `SPEEDMAP_MODE` is unset, manual startup defaults to `actual`. A PowerShell assignment persists in that shell; use `Remove-Item Env:SPEEDMAP_MODE` to restore the default.
+
+Set `SPEEDMAP_ROOT` before starting the launcher or API to use a different data/artifact root with the same `data/` and `artifacts/` layout, including `data/reference/`. Unset it to use the repository root. The provided Compose configuration does not forward this variable.
 
 For model mode, `SPEEDMAP_MODEL_NAME` defaults to `regional`. Leave `SPEEDMAP_MODEL_RUN` unset to load `LATEST`, or set it to a run directory name from `artifacts/models/regional/`. Use the scikit-learn version recorded in that run's metadata. Restart after changing data, artifacts, or environment variables.
 

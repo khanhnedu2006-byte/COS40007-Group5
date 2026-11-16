@@ -1,5 +1,7 @@
 # Regional baseline training and evaluation
 
+For an overview of each candidate, see [Models](models.md).
+
 ## Prerequisites
 
 Use the Python environment from [Fetch and prepare data](fetching_data.md). With it active, install `python -m pip install -r requirements-dev.txt` and `python -m pip install -e . --no-deps`. These baseline commands do not require TensorFlow or the Intel scikit-learn extension. Raw data is not included in a clone; fetch it or obtain matching processed tables from the data owner first.
@@ -18,7 +20,7 @@ python -m speedmap.cli.train_baselines
 
 The first two steps rebuild generated data from local raw inputs: Ookla mobile tiles, OpenCelliD cells, optional OSM masts, the boundary and context grid. They do not download inputs. `python -m speedmap.cli.run_pipeline --step baselines` is an equivalent training entrypoint. Run `python -m speedmap.cli.run_pipeline --step features --include-physics` followed by `python -m speedmap.cli.run_pipeline --step hybrid` to compare all five models and save the regional winner. `--step all` also builds physics features and runs this comparison.
 
-Feature generation skips physics by default for the regional baselines and prints an informational message. The `theory_mbps` column remains empty to preserve the shared table schema; it is excluded by both models. Baseline training and serving do not call the unfinished physics functions. The full comparison requires rebuilding features with `--include-physics`; training rejects missing or invalid theory values.
+Feature generation skips physics by default for the regional baselines and prints an informational message. The `theory_mbps` column remains empty to preserve the shared table schema; it is excluded by both models. Baseline training and serving do not require physics calculations. The full comparison requires `python -m pip install -r requirements-model.txt` for XGBoost and rebuilding features with `--include-physics`; training rejects missing or invalid theory values.
 
 The training table is `data/processed/hanoi_tiles.csv`, containing one observation per tile pooled over the latest four available quarters. For each tile, download is `expm1(sum(tests * log1p(speed)) / sum(tests))`. Preserve quadkeys as strings. All tiles, including those with few tests, participate in training and out-of-fold regional pooling.
 
@@ -49,7 +51,7 @@ The all-model winner is saved as a `regional_model` bundle and the app computes 
 
 Models are saved to `artifacts/models/regional/<run>/`, with `model.joblib`, `metadata.json`, and a parent `LATEST` pointer. Models and processed data are local generated artifacts excluded from Git.
 
-Evidence is saved to `artifacts/reports/regional/<run>/`:
+Evidence is saved locally to `artifacts/reports/regional/<run>/`. Generated reports are ignored by Git; share or archive the relevant run separately when needed:
 
 - `fold_metrics.csv`: held-out tile metrics and row counts for each fold/model.
 - `out_of_fold.csv`: row position, quadkey, coordinates, block, tests, measured target, fold ID, and each model's prediction. Read with `dtype={"quadkey": str}`.
@@ -58,9 +60,9 @@ Evidence is saved to `artifacts/reports/regional/<run>/`:
 
 Use a compatible runtime, including the recorded scikit-learn version, to load joblib artifacts. Supply the matching processed tiles, towers, cells and context grid when serving them. Pin the run with `SPEEDMAP_MODEL_RUN` and restart the API after changing it.
 
-## Current comparison: 500 m
+## Baseline comparison: 500 m
 
-Run `20261111-152722` reran the five identical spatial folds on the same 5,212 pooled tiles and refitted the selected winner. The scoring radius is **500 m**; the 2 km CV blocks, model settings, data, and 30-test minimum are unchanged.
+Historical run `20261111-152722` reran the five identical spatial folds on the same 5,212 pooled tiles and refitted the selected winner. The scoring radius is **500 m**; the 2 km CV blocks, model settings, data, and 30-test minimum are unchanged.
 
 - **Random Forest selected:** regional MAE **33.539987 Mbps**, exact-quality accuracy **69.5438%**, within-one-level accuracy **99.2602%**.
 - **KNN:** regional MAE **35.955053 Mbps**, exact-quality accuracy **68.1874%**, within-one-level accuracy **98.5203%**.

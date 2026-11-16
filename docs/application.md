@@ -95,13 +95,13 @@ npm run test:e2e
 
 Browser tests start local servers automatically unless they are already running. Use demo mode when reusing a running backend. Tests cover desktop and mobile, neighbourhood predictions, coordinate validation, direct map clicks, layers, the project dialog, reconnection, and changing selections while an earlier request is pending. Tests block third-party fonts and map requests so external outages cannot fail the application checks.
 
-The saved-model adapter is tested using serialized test estimators and real shared spatial features. These tests establish the interface, not the eventual model's prediction accuracy. The full repository test suite still includes the model owner's unfinished physics tests; application CI deliberately runs the checks that can pass before that work is complete. Add completed model checks to the team pipeline when ready.
+The saved-model adapter is tested using serialized test estimators and real shared spatial features. These tests establish the interface, not the eventual model's prediction accuracy. The full repository test suite also covers physics and hybrid models; application CI runs the focused checks listed in its workflow.
 
 ## Docker and CI
 
 `docker compose up --build` builds the FastAPI backend and React frontend, serves the frontend through Nginx at http://127.0.0.1:8080, and proxies `/api` to the backend. Both services have health checks; only local interfaces are published. The default stack uses actual mode and mounts local processed/interim data and models. Set `SPEEDMAP_MODE=demo` to run without data. Stop it with `docker compose down`.
 
-The backend installs the shared package in editable form inside the image because current shared settings resolve data paths relative to `src/speedmap/config.py`. Raw data and model artifacts are excluded from the build context. When integrating a real model into Docker, add its estimator dependencies and read-only mounts at `/app/artifacts/models`, `/app/data/interim` and `/app/data/processed`. Include the matching boundary and context grid under `/app/data/reference`.
+The image installs the package in editable form and uses `/app` as its default data root. It includes the checked-in reference files and installs `requirements-model.txt`. Raw data and model artifacts are excluded from the build context; Compose already mounts local models, interim data, and processed data read-only at `/app/artifacts/models`, `/app/data/interim`, and `/app/data/processed`. A real model still needs compatible estimator versions and matching inputs. The provided Compose configuration does not forward `SPEEDMAP_ROOT`.
 
 `.github/workflows/application.yml` runs Python lint, application/interface tests, notebook-output checks, frontend lint/build, desktop/mobile browser flows, and a Docker Compose smoke test. It is separate from the original TensorFlow training workflow. No deployment or public hosting is configured yet.
 

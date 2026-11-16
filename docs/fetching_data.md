@@ -1,6 +1,6 @@
 # Fetch and prepare Hanoi data
 
-Use this guide before [training models](training.md) or running the Web UI in recorded-data mode. Run commands from the repository root. Raw data and generated interim/processed tables are excluded from Git; cloning the source alone does not provide them.
+Use this guide before [training models](training.md) or running the Web UI in recorded-data mode. Run commands from the repository root after installing the package. Raw data and generated interim/processed tables are excluded from Git; cloning the source alone does not provide them. Set `SPEEDMAP_ROOT` before running Python to use a different root with the same `data/` and `artifacts/` layout, including the reference files. Explicit relative paths such as `--out` resolve from the current working directory.
 
 ## 1. Create the Python environment
 
@@ -81,7 +81,7 @@ The feature step writes:
 - `data/processed/hanoi_train.csv`: one observation per tile-quarter; used by the separate TensorFlow exercise.
 - `data/ci/hanoi_train.csv` and its manifest: refreshed automatically from the canonical tile-quarter table. These are tracked; review their diff when preparing a data update.
 
-Physics is skipped by default. The unused `theory_mbps` column remains empty and does not prevent baseline training. `--step features --include-physics` explicitly attempts the unfinished physics feature for separate hybrid work. Use the individual steps above rather than `--step all`, which also reaches the unfinished hybrid pipeline.
+Physics is skipped by default. The unused `theory_mbps` column remains empty and does not prevent baseline training. For the five-model comparison, install `requirements-model.txt`, rebuild features with `--step features --include-physics`, then run `--step hybrid`. `--step all` also builds the physics feature and runs that comparison; it additionally requires context inputs for the context step.
 
 The existing snapshot produced 2,398 towers, 3,317 cells, 5,212 pooled tiles, and 24,679 tile-quarter records. These are reference counts, not required values for a newer download. Preserve quadkeys as strings when loading CSVs.
 
@@ -97,7 +97,7 @@ python -m speedmap.cli.run_pipeline --step context
 python -m speedmap.cli.run_pipeline --step features
 ```
 
-`fetch_context_data.py` downloads population, land-cover, elevation, roads and OSM POIs to `data/raw/context/`, skipping files already present. `fetch_places.py` supplies Overture POIs as an alternative to Overpass POIs; the context builder prefers `overture_places.json` when present. The context step rebuilds `data/reference/hanoi_context_grid.npz` from available layers. Check downloader output for failures or missing layers before using the rebuilt grid.
+`speedmap.cli.fetch_context_data` downloads population, land-cover, elevation, roads and OSM POIs to `data/raw/context/`, skipping files already present. `speedmap.cli.fetch_places` supplies Overture POIs as an alternative to Overpass POIs; the context builder prefers `overture_places.json` when present. The context step rebuilds `data/reference/hanoi_context_grid.npz` from available layers. Check downloader output for failures or missing layers before using the rebuilt grid.
 
 ## Verify and continue
 

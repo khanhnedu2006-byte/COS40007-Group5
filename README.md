@@ -152,12 +152,12 @@ React + Leaflet map
         v
 FastAPI backend
         |
-        +-- Demo mode: deterministic simulated data
-        |
-        +-- Model mode: shared features -> saved model bundle
+        +-- Demo mode: simulated speeds, local or simulated towers
+        +-- Data mode: recorded observations and local towers
+        +-- Model mode: shared features -> saved regional model bundle
 ```
 
-The app serves the selected **KNN or Random Forest baseline**, pooling point predictions into a test-weighted regional log mean. The physics/hybrid pipeline remains separate and unfinished. Regional results have no calibrated uncertainty interval.
+Model mode serves the selected model from a regional bundle, pooling point predictions into a test-weighted regional log mean. Baseline bundles contain KNN and Random Forest; the full comparison can also include hybrid, physics-only, and XGBoost-only candidates. Regional results have no calibrated uncertainty interval.
 
 ## Connect the trained model
 
@@ -171,11 +171,11 @@ python -m speedmap.cli.train_baselines
 
 This creates the processed cell/tower tables, pools the latest four quarters into one observation per tile, compares both baselines on five spatial folds, and saves the regional winner. Physics is not required. Raw inputs and generated models/data are excluded from Git; retain them when handing off a trained run. Use the same scikit-learn version recorded in the model metadata when loading a saved model.
 
-The feature step skips physics by default and leaves the unused `theory_mbps` column empty. `--include-physics` explicitly attempts that feature for the separate hybrid workflow, where unfinished-physics warnings still apply.
+The feature step skips physics by default and leaves the unused `theory_mbps` column empty. For the five-model comparison, install `requirements-model.txt`, rebuild with `python -m speedmap.cli.run_pipeline --step features --include-physics`, then run `python -m speedmap.cli.run_pipeline --step hybrid`.
 
 The model is saved under `artifacts/models/regional/<run>/`. Evidence is saved under `artifacts/reports/regional/<run>/`: `summary.csv`, `fold_metrics.csv`, `out_of_fold.csv` and `manifest.json`. Each parent directory has a `LATEST` pointer. Read the [training and evaluation guide](docs/training.md) for metric definitions and limitations. The older individual baseline scripts evaluate tile-quarter data and do not create the app's regional bundle.
 
-The current **500 m** run (`20261111-152722`) selected **Random Forest**: regional MAE **33.54 Mbps**, quality-level accuracy **69.54%**, compared with KNN's **35.96 Mbps** and **68.19%**. Only **811 of 5,212** tile-centred regions (15.56%) meet the unchanged 30-test threshold; majority-quality accuracy is **68.68%** on that subset. These are spatial out-of-fold model-selection results, not an independent holdout estimate. The [training guide](docs/training.md) retains the historical 1.5 km comparison and explains the limits of the smaller radius.
+The **500 m** baseline run (`20261111-152722`) selected **Random Forest**: regional MAE **33.54 Mbps**, quality-level accuracy **69.54%**, compared with KNN's **35.96 Mbps** and **68.19%**. Only **811 of 5,212** tile-centred regions (15.56%) meet the unchanged 30-test threshold; majority-quality accuracy is **68.68%** on that subset. These are spatial out-of-fold model-selection results, not an independent holdout estimate. The [training guide](docs/training.md) retains the historical 1.5 km comparison and explains the limits of the smaller radius.
 
 Double-click **`start.bat`**, or start the backend manually on macOS/Linux:
 
@@ -220,7 +220,7 @@ npm run test:e2e
 
 Browser tests can reuse running local servers in demo mode. If you have stopped them, activate the backend virtual environment in the test terminal first so Playwright can start Python itself: `..\.venv\Scripts\Activate.ps1` on Windows or `source ../.venv/bin/activate` on macOS/Linux.
 
-Application checks work without a trained model. The full `pytest` suite also includes physics tests for model components still under development; the focused command above matches application CI.
+Application checks work without a trained model. The full suite also covers physics and hybrid model components; see the workflow for the exact application CI selection.
 
 ## Repository guide
 
@@ -236,6 +236,7 @@ src/speedmap/             Python application and shared package
   models/                 Baselines, hybrid model and conformal ranges
   evaluation/             Spatial cross-validation, metrics and figures
   inference/              Saved-model adapter used by the backend
+src/ml/                   Historical Irish-data builder and model compatibility
 notebooks/                Data exploration, training and evaluation
 scripts/                  Windows launcher bootstrap
 data/                     Raw, interim, processed and reference data
@@ -246,7 +247,20 @@ docs/                     Application guide and shared contracts
 compose.yaml              Local Docker stack
 ```
 
-Reusable logic belongs in `src/speedmap/`; notebooks call those functions so training and inference can share the same code. The older `src/ml/` package contains earlier prototypes. Some data and model components remain marked `TODO` or `NotImplementedError`.
+Reusable logic belongs in `src/speedmap/`; notebooks call it so training and inference share the same code. `src/ml/` retains the historical Irish-data builder and legacy model import paths for existing serialized artifacts.
+
+### Python commands and data paths
+
+Install the package in editable mode with the same interpreter used to run commands (`python -m pip install -e . --no-deps`). The primary entry points are:
+
+- `python -m uvicorn speedmap.api.main:app` for the API and `python -m speedmap.cli.launch actual` for both services.
+- `python -m speedmap.cli.fetch_ookla_hanoi`, `fetch_osm_towers`, `fetch_context_data`, and `fetch_places` for downloads; use the full `speedmap.cli.<name>` module for each.
+- `python -m speedmap.cli.run_pipeline --step <step>` for `towers`, `context`, `features`, `baselines`, `hybrid`, or `all`; `python -m speedmap.cli.train_baselines` runs the baseline comparison.
+- `python -m speedmap.cli.sync_ci_data` for the CI snapshot and `python -m speedmap.cli.group_task_model` for the separate TensorFlow exercise.
+
+Installed console commands, including `speedmap-launch`, `speedmap-pipeline`, and `speedmap-train-baselines`, provide the same entry points; see `[project.scripts]` in `pyproject.toml` for the complete list. Old `backend.main`, root `model.py`, and Python scripts under `scripts/` are no longer entry points.
+
+By default, data, reference files, models, and reports resolve relative to the repository root. Set `SPEEDMAP_ROOT` before starting Python to use another root with the same `data/` and `artifacts/` layout; reference files must also exist there. Relative explicit paths such as `--out` still resolve from the current working directory. The provided Compose configuration uses `/app` and does not forward `SPEEDMAP_ROOT`.
 
 ### Team responsibilities
 
@@ -287,6 +301,7 @@ Both workflows target pushes and pull requests to `main` and support manual runs
 - [Application setup, model handoff and environment settings](docs/application.md)
 - [API endpoints and saved-model bundle contract](docs/api_contract.md)
 - [Training data contract](docs/data_contract.md)
+- [Models and how they work](docs/models.md)
 - [Regional training, evaluation and results](docs/training.md)
 - [Project background, scope and decisions](PROJECT_CONTEXT.md)
 
@@ -295,5 +310,3 @@ Both workflows target pushes and pull requests to `main` and support manual runs
 The prediction pipeline uses **[Ookla Open Data](https://github.com/teamookla/ookla-open-data)** (CC BY-NC-SA 4.0) and **[OpenCelliD](https://opencellid.org/)** (CC BY-SA 4.0). The Hanoi boundary comes from **[geoBoundaries](https://www.geoboundaries.org/)** (CC BY 4.0). The default basemap is © **[Stadia Maps](https://stadiamaps.com/attribution/)**, **[OpenMapTiles](https://openmaptiles.org/)** and **[OpenStreetMap contributors](https://www.openstreetmap.org/copyright)**; the detailed style uses OpenStreetMap tiles. Local Stadia development needs no API key; public hosting needs domain authentication as described in the [application guide](docs/application.md).
 
 These credits describe the project data sources. Demo speeds are simulated; tower locations use the local dataset when available, otherwise simulated locations.
-
-After installing the package in editable mode, the package commands are available as `python -m speedmap.cli.<command>` after installation; console commands such as `speedmap-pipeline` and `speedmap-train-baselines` are also installed. Set `SPEEDMAP_ROOT` to an absolute project directory to override the default data and artifact root. The `src/ml` package is retained for historical prototypes and serialized model import compatibility.

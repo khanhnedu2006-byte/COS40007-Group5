@@ -1,8 +1,8 @@
 # Project Context: Mobile Internet Speed Prediction for Hanoi
 
-> **For AI assistants:** This file is the shared context for our COS40007 group project. Treat the decisions below as final unless a team member says otherwise. Do not re-suggest the rejected options in Section 12 without a new reason. When numbers here and your own knowledge disagree, trust this file and say so.
+> **For AI assistants:** This document records the project background and earlier decisions. Sections with dated observations, planned features, historical metrics, or proposed next steps are historical, not a specification of the current implementation. For current behavior and commands, use [README.md](README.md), [the API contract](docs/api_contract.md), and [the training guide](docs/training.md). The repository layout below reflects the backend refactor.
 >
-> Last updated: 18 October 2026.
+> Repository layout updated: 16 November 2026.
 
 ---
 
@@ -18,27 +18,25 @@
 
 ## 2. Problem Statement
 
-People in Hanoi cannot see what mobile internet speed to expect at a place before they get there. Speed-test data exists only where people have run tests. We train a model that estimates mobile internet speed at **any point in Hanoi** from its location and its **distance to cell towers**, and we show it on a web map: the user clicks a point and sees the estimated speed.
+People in Hanoi need an indication of typical mobile internet performance at a location before they get there. The project uses public speed-test observations and infrastructure/context features to estimate performance for a chosen location on a web map. It combines 4G and 5G rather than predicting a specific operator or a live connection.
 
-- **Unit of analysis:** one Ookla tile (about 610 m × 610 m) in one quarter.
-- **Target:** average download speed of a tile (primary); upload speed and latency (secondary).
-- **Output for a clicked point:** estimated download, upload, latency, an 80% confidence range for download, a quality level, and the distance to the nearest towers.
+The current web interface presents a regional download estimate, quality level, support information, and nearby tower locations. The default radius is 500 m; an explicitly pinned model can use its saved radius. The application has separate demo, recorded-data, and model modes. See [the API contract](docs/api_contract.md) for response fields and [training](docs/training.md) for evaluation limits.
 
 ## 3. Pipeline
 
-```
-1. Ookla data for Hanoi          DONE   (30,214 rows)
-2. Tower locations (OpenCelliD)  TODO   → distance from each tile to towers
-3. Train models                  TODO   → 2 baselines + hybrid main model
-4. Web map demo                  TODO   → Hanoi map, tower nodes, click a point → speed
-```
+1. Fetch Ookla observations and obtain OpenCelliD data; optional OSM and context fetchers supply extra inputs.
+2. Prepare towers, cells, and shared features in the `speedmap` package.
+3. Train and evaluate regional baselines or the full five-model comparison with spatial out-of-fold validation.
+4. Serve a registered model, recorded observations, or simulated demo results through the FastAPI and React application.
+
+Use [Fetch and prepare data](docs/fetching_data.md), [Training](docs/training.md), and [Run the Web UI](docs/running_web_ui.md) for current commands and prerequisites.
 
 ## 4. Data
 
 ### 4.1 Ookla Open Data, mobile tiles (main dataset, labels)
 
 - Source: Ookla Open Data on AWS (`s3://ookla-open-data`, public parquet), licence **CC BY-NC-SA 4.0** (non-commercial; must credit Ookla).
-- Downloaded with `ml/fetch_ookla_hanoi.py` (reads the global parquet with DuckDB and keeps only tiles inside the Hanoi box: latitude 20.53 to 21.40, longitude 105.28 to 106.03).
+- Current fetch command: `python -m speedmap.cli.fetch_ookla_hanoi`. It reads global Parquet through DuckDB and filters the current Hanoi envelope; exact boundary filtering follows during preparation. The profile below describes an earlier download.
 - File: `data/raw/ookla_hanoi_mobile.csv`
 
 | Column | Meaning |
@@ -71,7 +69,7 @@ People in Hanoi cannot see what mobile internet speed to expect at a place befor
 - Extreme values exist (latency up to 1,967 ms, download up to 1,385 Mbps), mostly single-test tiles → remove latency > 500 ms and clip extreme download in low-test tiles.
 - `devices` is higher in the centre where infrastructure is also denser, so it reflects both crowding and investment; do not read it as "more users = slower".
 - **The data may be out of date.** Ookla Speedtest Global Index reports Hanoi's median mobile download at **493 Mbps in August 2026** (Vietnam 206 Mbps in July 2026, 220 Mbps in August 2026; world 109 Mbps). Re-run the fetch script with newer quarters:
-  `python ml/fetch_ookla_hanoi.py --quarters 2024-4 2025-1 2025-2 2025-3 2025-4 2026-1 2026-2 2026-3` (missing quarters are skipped).
+  `python -m speedmap.cli.fetch_ookla_hanoi --quarters 2024-4 2025-1 2025-2 2025-3 2025-4 2026-1 2026-2 2026-3` (missing quarters are skipped).
 
 ### 4.2 OpenCelliD (tower locations), DOWNLOADED 28 Oct 2026
 
@@ -86,16 +84,16 @@ People in Hanoi cannot see what mobile internet speed to expect at a place befor
 ### 4.2b Data decisions, 2 Nov 2026
 - Study area = **Hanoi administrative boundary** (`data/reference/hanoi_boundary.geojson`, geoBoundaries CC BY 4.0), not the bounding box: 40% of the old rows were in neighbouring provinces. Towers are kept up to 5 km outside the border. The backend uses the same polygon to reject clicks.
 - New table `data/processed/hanoi_tiles.csv`: one row per tile, speeds pooled over the latest 4 quarters (test-weighted log mean), with `reliability` (low/medium/high by tests). Recommended training table; inside Hanoi, tower features correlate better with speed (towers within 1 km: Spearman 0.43 on tiles with >= 10 tests).
-- OpenCelliD positions cluster along main roads (crowdsourced), so they are "estimated cell locations", not official sites. `scripts/fetch_osm_towers.py` (run locally) downloads OSM telecom masts to fill gaps.
-- Ookla bounding box widened to lon 106.08 (Hanoi reaches 106.07); re-run `scripts/fetch_ookla_hanoi.py` locally to get the missing east strip and quarters 2026-2/2026-3.
+- OpenCelliD positions cluster along main roads (crowdsourced), so they are "estimated cell locations", not official sites. `python -m speedmap.cli.fetch_osm_towers` (run locally) downloads OSM telecom masts to fill gaps.
+- Ookla bounding box widened to lon 106.08 (Hanoi reaches 106.07); re-run `python -m speedmap.cli.fetch_ookla_hanoi` locally to get the missing east strip and quarters 2026-2/2026-3.
 
 - **5 Nov 2026, more features** (distance to towers alone is not enough): `PointFeaturizer` adds cells within 1/2 km, operators within 1 km, distance to the centre, and user activity (Ookla devices of the own tile and of tiles within 1/2/5 km). Spatial-CV test (XGBoost, tiles >= 10 tests): level accuracy 59.1% -> 62.8%, MAE 43.3 -> 39.7 Mbps, Spearman 0.38 -> 0.45. "Always predict the majority level" = 54%; same tile half-year to half-year agrees on the level only 55-63% (noise ceiling). Population (WorldPop) and night lights (VIIRS) rasters could not be downloaded from the session; optional next step on a local machine.
 
-- **8 Nov 2026, context data** (downloaded locally with `scripts/fetch_context_data.py`, grid built with `run_pipeline.py --step context` -> `data/reference/hanoi_context_grid.npz`): WorldPop 2020 population, ESA WorldCover 2021 land cover, Copernicus DEM, OSM major roads, Overture Maps places (404,637 places, `scripts/fetch_places.py`, because Overpass timed out) -> 11 features (population_500m/1km, builtup, trees, cropland, water, elevation, slope, roads_km_1km, pois_1km). Spatial CV (tiles >= 10 tests, mean of 3 splits): towers + location 58.7% level accuracy / MAE 43.2; + Ookla activity 62.2% / 39.3; all features 62.8% ±0.4% / 39.3, R2(log) 0.19, Spearman 0.45 (at the noise ceiling). Context features without Ookla device counts reach 60.0% / MAE 41.3 / Spearman 0.43, so predictions also work where there is no Ookla tile. Top features: own_devices, population_500m, pois_1km, water_1km, builtup_500m.
+- **8 Nov 2026, context data** (downloaded locally with `python -m speedmap.cli.fetch_context_data`, grid built with `python -m speedmap.cli.run_pipeline --step context` -> `data/reference/hanoi_context_grid.npz`): WorldPop 2020 population, ESA WorldCover 2021 land cover, Copernicus DEM, OSM major roads, Overture Maps places (404,637 places, `python -m speedmap.cli.fetch_places`, because Overpass timed out) -> 11 features (population_500m/1km, builtup, trees, cropland, water, elevation, slope, roads_km_1km, pois_1km). Spatial CV (tiles >= 10 tests, mean of 3 splits): towers + location 58.7% level accuracy / MAE 43.2; + Ookla activity 62.2% / 39.3; all features 62.8% ±0.4% / 39.3, R2(log) 0.19, Spearman 0.45 (at the noise ceiling). Context features without Ookla device counts reach 60.0% / MAE 41.3 / Spearman 0.43, so predictions also work where there is no Ookla tile. Top features: own_devices, population_500m, pois_1km, water_1km, builtup_500m.
 
 - **9 Nov 2026, tested two proposals** (spatial CV, evaluated on the same reliable tiles with >= 30 tests in the latest 4 quarters, n=811): (1) more tests per label: 8 quarters pooled with per-quarter normalisation -> 68.8% level accuracy (current 4-quarter labels 70.8%), rows = (tile, quarter) + quarter_index -> 69.7%; Spearman 0.43 -> 0.46, MAE unchanged (~33.5 Mbps). Noise ceiling (same tile, even vs odd quarters) rises with tests: 59% (>=3 tests) -> 62% (>=10) -> 69% (>=30); the model on reliable tiles (70.8%) is already at that ceiling. (2) OpenCelliD split by operator (MNC 01 MobiFone, 02 VinaPhone, 04 Viettel, 05 Vietnamobile) and NR: no gain (63.0% vs 62.8% on >= 10 tests); only 7 NR cells in Hanoi (all VinaPhone), Viettel under-represented (889 LTE cells). Per-test data (own Android app / drive test) is the only way to model operator and technology, but cannot cover Hanoi in time; best used as an independent validation set.
 
-- **9 Nov 2026, decision: area result with a 1.5 km radius.** Clicking a point returns the typical speed of the 1.5 km circle around it (`speedmap.inference.area`, `Predictor.predict_area`; evaluation helper `speedmap.evaluation.area.area_level_scores`). Spatial CV, click-centred circles with >= 30 tests (80% of clicks): 77.8% correct level (always-majority 56.5%), 99.8% within one level, MAE 18 Mbps. Radius 0.5 km 70%, 1 km 73%, 3 km 84% (too coarse). Single-tile accuracy stays in the report as the detailed result (62–71%).
+- **9 Nov 2026, historical decision: area result with a 1.5 km radius.** This was superseded by the current 500 m default; explicitly pinned older runs retain their saved radius. Clicking a point returns the typical speed of the 1.5 km circle around it (`speedmap.inference.area`, `Predictor.predict_area`; evaluation helper `speedmap.evaluation.area.area_level_scores`). Spatial CV, click-centred circles with >= 30 tests (80% of clicks): 77.8% correct level (always-majority 56.5%), 99.8% within one level, MAE 18 Mbps. Radius 0.5 km 70%, 1 km 73%, 3 km 84% (too coarse). Single-tile accuracy stays in the report as the detailed result (62–71%).
 
 ### 4.3 OpenStreetMap (optional features, map background)
 
@@ -210,36 +208,32 @@ Popup: "Estimate 133 Mbps (95–170) · Good · Theoretical 223, local effect �
 
 ## 11. Repository and Files
 
-Local folder: `D:\VSCode file\Swinburne\COS40007\Group project`
-
-```
-Group project/
-├── data/
-│   ├── raw/
-│   │   ├── ookla_hanoi_mobile.csv          main dataset (Hanoi)
-│   │   ├── 5G-production-dataset.zip       Irish dataset, NOT used for Hanoi
-│   │   └── 5G-production-dataset/          extracted Irish dataset
-│   └── processed/
-│       └── 5g_train.csv                    built from the Irish dataset, NOT used
-├── ml/
-│   ├── fetch_ookla_hanoi.py                downloads Ookla tiles for Hanoi
-│   └── build_dataset.py                    Irish dataset builder, NOT used
-└── docx/
-    ├── PROJECT_SPECIFICATION_DEFINITION_v8.docx   LATEST specification
-    └── (older versions v1 to v7 and planning documents: outdated)
-```
-
-Planned structure for new code:
-```
-ml/   fetch_opencellid.py, features.py (shared with backend), physics_3gpp.py,
-      train_baselines.py, train_hybrid.py, evaluate.py
-models/   saved models, conformal calibration, metrics.json
-backend/  FastAPI app (main.py, predict endpoint)
-frontend/ React + Leaflet map
-notebooks/ EDA and experiments
+```text
+src/speedmap/       Python application and shared package
+  api/              FastAPI application, response schemas, demo predictor
+  cli/              Launcher, data-fetching, preparation and training commands
+  data/             Dataset, boundary, context and tower processing
+  features/         Shared training and inference features
+  inference/        Recorded-data and saved-model prediction adapters
+  models/           Baselines, hybrid models and registry
+  physics/          Propagation and link budget
+  evaluation/       Spatial validation, metrics and plots
+src/ml/             Historical Irish-data builder and model import compatibility
+backend/            Backend Dockerfile
+frontend/           React and Leaflet application
+scripts/            Windows launcher bootstrap
+notebooks/          Exploration and experiments
+data/               Raw, interim, processed, CI and reference data
+artifacts/          Saved model runs and reports
+tests/              Python tests
+docs/               Guides and data/API contracts
 ```
 
-**Coding conventions:** variable and function names in English; comments in Vietnamese, only where needed; Python with pandas, scikit-learn, xgboost, mapie; seeds fixed for reproducibility.
+Install the package with `python -m pip install -e . --no-deps` after installing the relevant requirements. The API entry point is `speedmap.api.main:app`; run workflows as `python -m speedmap.cli.<module>` or through the console scripts listed in `pyproject.toml`. The old `backend.main`, root `model.py`, and Python scripts under `scripts/` were replaced during the refactor.
+
+By default, `data/` and `artifacts/` resolve from the repository root. `SPEEDMAP_ROOT` selects a different root with the same layout, including reference files. See the [repository guide](README.md#repository-guide) and [application guide](docs/application.md) for installation and Docker details.
+
+**Coding conventions:** variable and function names in English; comments in Vietnamese, only where needed; seeds fixed for reproducibility.
 
 ## 12. Decisions Log (do not re-open without a new reason)
 
@@ -266,14 +260,12 @@ notebooks/ EDA and experiments
 
 This split is a proposal; confirm within the team.
 
-## 14. Next Steps
+## 14. Current Workflows
 
-1. ~~Download OpenCelliD and count towers~~ DONE: 2,311 merged towers in Hanoi (see 4.2).
-2. Re-run the Ookla script with newer quarters (2026-2, 2026-3) if available.
-3. Build the feature table `data/processed/hanoi_train.csv` with tower features and `tests` as weight.
-4. Train the baselines, then the hybrid model; compare with spatial CV.
-5. Build the FastAPI endpoint and the Leaflet map.
-6. Before claiming novelty in a paper, review related work on physics-guided ML and radio maps.
+- Obtain current data and rebuild the feature tables when inputs change; see [fetching data](docs/fetching_data.md).
+- Run the baseline or full regional comparison and preserve its reports and input provenance; see [training](docs/training.md).
+- Start the application in the appropriate mode and verify readiness; see [running the web UI](docs/running_web_ui.md).
+- Review related work before making a novelty claim in a paper.
 
 ## 15. Key Sources
 

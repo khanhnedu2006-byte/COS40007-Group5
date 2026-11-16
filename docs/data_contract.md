@@ -1,6 +1,6 @@
 # Data Contract: `data/processed/hanoi_train.csv`
 
-Produced by Person 1 (notebook 03), consumed by Person 2 (notebooks 04 to 07).
+The feature pipeline produces this tile-quarter table; the separate Group Task 2 workflow and notebooks consume it. Regional model training and recorded-data mode use the pooled tile table described below.
 Change this file and `src/speedmap/config.py` together, and tell the team.
 
 One row = one Ookla tile (about 610 m) in one quarter.
@@ -59,7 +59,7 @@ Less noisy than one tile in one quarter; recommended for training and for the ma
 
 Context layers on a 0.001° (~110 m) grid over the Hanoi box: population, builtup, trees, cropland, water, elevation_m,
 slope_deg, roads_km, pois. Built by `python -m speedmap.cli.run_pipeline --step context` from the files downloaded by
-`src/speedmap/cli/fetch_context_data.py`. Small enough to commit; the backend reads it with numpy only.
+`python -m speedmap.cli.fetch_context_data`. Small enough to commit; the backend reads it with numpy only.
 Windows are squares of ±radius around the point (e.g. "1km" = about 2 km x 2 km).
 
 # `data/interim/hanoi_cells.csv`
@@ -73,7 +73,7 @@ Columns: tower_id, latitude, longitude, cells, operators, samples, inside_hanoi,
 OSM masts (`tower:type=communication`) are added only when more than 200 m from an OpenCelliD tower.
 Positions are **estimated from phone measurements** (they cluster along main roads), not official site locations.
 
-# Current version (8 Nov 2026)
+# Example data snapshot (8 Nov 2026)
 Rebuild: `python -m speedmap.cli.run_pipeline --step towers` then `--step features`.
 - hanoi_train.csv: 24,679 rows, 6,250 tiles inside Hanoi, quarters 2024-4 to 2026-3
 - hanoi_tiles.csv: 5,212 tiles pooled over 2025-4 to 2026-3; reliability low 1,874 / medium 1,710 / high 1,628
@@ -97,4 +97,4 @@ The earlier 1.5 km comparison selected KNN with regional MAE **20.80 Mbps**, qua
 
 # 500 m regional output
 
-The current output/evaluation radius is **500 m** (`config.AREA_RADIUS_M`); this does not change the pooled tile targets, feature radii or 2 km spatial CV groups. Run `20261111-152722` selects Random Forest using spatial OOF predictions: MAE **33.54 Mbps**, exact-quality accuracy **69.54%**, coverage **15.56%** (811 qualifying measured regions). The earlier 1.5 km scores above are historical. Tile-centre spacing is about 569 m or more, so the 500 m evaluation has one observation per tile-centred circle; arbitrary UI circles and their added grid samples have different support. See [training.md](training.md#current-comparison-500-m) for interpretation and model loading.
+The default output/evaluation radius is **500 m** (`config.AREA_RADIUS_M`); this does not change the pooled tile targets, feature radii or 2 km spatial CV groups. Run `20261111-152722` selects Random Forest using spatial OOF predictions: MAE **33.54 Mbps**, exact-quality accuracy **69.54%**, coverage **15.56%** (811 qualifying measured regions). The earlier 1.5 km scores above are historical. Tile-centre spacing is about 569 m or more, so the 500 m evaluation has one observation per tile-centred circle; arbitrary UI circles and their added grid samples have different support. See [training.md](training.md#baseline-comparison-500-m) for interpretation and model loading.

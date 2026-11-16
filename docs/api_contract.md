@@ -1,6 +1,6 @@
 # Regional API Contract (v0.3)
 
-The app estimates typical download speed in a 500 m circle around an input coordinate. It combines mobile networks/operators and is not a live speed test. This replaces the previous point-level prediction response; clients must use the `area_*` fields.
+The app estimates typical download speed in a circle around an input coordinate (500 m by default; a pinned model run can specify another radius). It combines mobile networks/operators and is not a live speed test. This replaces the previous point-level prediction response; clients must use the `area_*` fields.
 
 ## GET /api/health
 
@@ -17,7 +17,7 @@ Returns Hanoi's administrative boundary as a GeoJSON FeatureCollection, using th
 
 ## GET /api/towers
 
-Returns tower objects containing `tower_id` (integer or string), `latitude`, `longitude`, and `source`. OpenCelliD positions are estimated cell locations, not official tower sites. Demo tower sources are `simulated`.
+Returns tower objects containing `tower_id` (integer or string), `latitude`, `longitude`, and `source`. OpenCelliD positions are estimated cell locations, not official tower sites. Demo speeds are simulated; tower sources reflect local data when available or are `simulated` otherwise.
 
 ## GET /api/predict?lat=21.0285&lon=105.8542
 
@@ -49,7 +49,7 @@ Example from the saved Random Forest regional run:
 - `area_points = area_ookla_tiles + area_grid_points`. Model mode samples measured tile centres in the circle, weighted by their test counts. Those counts define sampling support; the output pools model predictions rather than measured speeds.
 - In model mode, with fewer than five measured tiles, add grid points spaced 300 m apart with unit weight, including when there are no measured tiles. Positive `area_grid_points` identifies sparse support. The full circle is sampled even when it crosses the city boundary; only its input centre must be inside Hanoi.
 - `nearest_towers`: one to three locations ordered by distance from the input centre, in metres.
-- `source`: `model`, `data`, or `demo`. Recorded-data mode uses `recorded` as its model name. Model names are `knn` or `random_forest`; demo uses `simulated`, version `demo-regional-v1`, simulated grid speeds, zero measured tiles, and explicit UI labels. Demo uses local tower locations when available, otherwise simulated towers; tower provenance is independent of simulated speed provenance.
+- `source`: `model`, `data`, or `demo`. Recorded-data mode uses `recorded` as its model name. Available regional model names can include `knn`, `random_forest`, `hybrid`, `physics_only`, and `xgboost_only`; demo uses `simulated`, version `demo-regional-v1`, simulated grid speeds, zero measured tiles, and explicit UI labels. Demo uses local tower locations when available, otherwise simulated towers; tower provenance is independent of simulated speed provenance.
 
 Regional model/demo responses leave optional legacy point fields null. Recorded-data responses retain download/upload/latency, neighbour spread, and `data_support` fields for existing data clients. The UI presents the regional average where measured tiles exist; an empty recorded region is unavailable rather than filled with invented observations. Point-level neighbour spread is not a regional confidence interval.
 
@@ -68,7 +68,7 @@ Location: `artifacts/models/regional/<run>/model.joblib` with adjacent `metadata
 }
 ```
 
-The estimator exposes `predict(features)` in Mbps. Metadata stores the ordered feature columns, settings, out-of-fold metrics, training period, input fingerprints, and scikit-learn version. KNN uses latitude/longitude; Random Forest uses `config.FEATURE_COLUMNS` except `theory_mbps`, with its fitted context imputer saved inside the model. The adapter rejects legacy hybrid/point bundles; train with `python -m speedmap.cli.train_baselines`.
+The estimator exposes `predict(features)` in Mbps. Metadata stores the ordered feature columns, settings, out-of-fold metrics, training period, input fingerprints, and scikit-learn version. KNN uses latitude/longitude; Random Forest uses `config.FEATURE_COLUMNS` except `theory_mbps`, with its fitted context imputer saved inside the model. The adapter supports current `regional_baseline` and `regional_model` bundles, including physics-based candidates, but rejects legacy point-model bundles. Train baselines with `python -m speedmap.cli.train_baselines` or use the hybrid step described in the training guide.
 
 See [training.md](training.md) for evaluation and [data_contract.md](data_contract.md) for matching inputs. Keep saved models and processed data from the same run together; canonical data fingerprints are checked at startup. Older regional runs with equivalent input hashes in `provenance.input_sha256` are verified through those hashes; unversioned or mismatched inputs are rejected.
 
