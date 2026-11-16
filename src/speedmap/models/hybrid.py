@@ -6,14 +6,14 @@ from xgboost import XGBRegressor
 from speedmap import config
 from speedmap.models.base import BaseSpeedModel
 
-DEFAULT_XGB_PARAMS = dict(
-    n_estimators=600,
-    learning_rate=0.03,
-    max_depth=6,
-    subsample=0.8,
-    colsample_bytree=0.8,
-    random_state=config.RANDOM_SEED,
-)
+DEFAULT_XGB_PARAMS = {
+    "n_estimators": 600,
+    "learning_rate": 0.03,
+    "max_depth": 6,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "random_state": config.RANDOM_SEED,
+}
 
 
 class HybridModel(BaseSpeedModel):
