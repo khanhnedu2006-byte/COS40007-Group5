@@ -1,0 +1,55 @@
+{
+  "name": "hybrid",
+  "run_id": "20261127-151044",
+  "created_at": "2026-11-27T15:10:44",
+  "feature_columns": [
+    "latitude",
+    "longitude",
+    "dist_nearest_tower_m",
+    "towers_500m",
+    "towers_1km",
+    "theory_mbps",
+    "cells_1km",
+    "cells_2km",
+    "operators_1km",
+    "center_km",
+    "own_devices",
+    "devices_1km",
+    "devices_2km",
+    "devices_5km",
+    "tiles_1km",
+    "tiles_2km",
+    "population_500m",
+    "population_1km",
+    "builtup_500m",
+    "builtup_1km",
+    "trees_1km",
+    "cropland_1km",
+    "water_1km",
+    "elevation_m",
+    "slope_deg",
+    "roads_km_1km",
+    "pois_1km"
+  ],
+  "metrics": {
+    "mae": 52.54011872828327,
+    "rmse": 73.7807979921861,
+    "level_accuracy": 0.5341106719991967
+  },
+  "params": {
+    "n_estimators": 600,
+    "learning_rate": 0.03,
+    "max_depth": 6,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "random_state": 42
+  },
+  "notes": "Spatial 5-fold CV; test rows require >= 3 tests; fitted with sample_weight; includes theory_mbps; training file SHA-256: 15afa031bbb271e071b4f7293bf0dcd6f16f25836303101b7a167f5887fea3bc",
+  "provenance": {},
+  "data_fingerprints": {
+    "towers": "1e57e97259febe7a1b9e79bfe587591799035ed2343abb783cc9cd96b369324c",
+    "training": "15afa031bbb271e071b4f7293bf0dcd6f16f25836303101b7a167f5887fea3bc",
+    "tiles": "0d9d8d6ae0078cc364d902c81c74606a84db39ae0d0156d249070e2ffca6461a",
+    "boundary": "9df1a4cafad4a1418c22f2361ab779c639327c63bdc54d3f31ec2d3d2f38c408"
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "run_id": "20261127-145814",
+  "selected_model": "random_forest",
+  "input_sha256": {
+    "data/raw/ookla_hanoi_mobile.csv": "e884cedae96abe99fff7e6e4e2cb9acbaf7d1062da5cf900f4bfc28fc6f318de",
+    "data/raw/452.csv.gz": "fe0d38b5f117e027a80f0d0f768a248e3b286329827d7208f159341a799f269c",
+    "data/raw/osm_comm_towers.csv": "1af6cfcd9ad79307fbc4e6151e621a7270066258db5a30f9c57f5c54f29c7108",
+    "data/processed/hanoi_tiles.csv": "0d9d8d6ae0078cc364d902c81c74606a84db39ae0d0156d249070e2ffca6461a",
+    "data/interim/hanoi_towers.csv": "1e57e97259febe7a1b9e79bfe587591799035ed2343abb783cc9cd96b369324c",
+    "data/interim/hanoi_cells.csv": "396d20a8afd1b51e725736d6cd1d71436607b88a1eec5ce0ad3145943b3dad27",
+    "data/reference/hanoi_inner_boundary.geojson": "9df1a4cafad4a1418c22f2361ab779c639327c63bdc54d3f31ec2d3d2f38c408",
+    "data/reference/hanoi_context_grid.npz": "9d0fdcedbcc4745e5940c7596700660c6a47cd53e4316919d99fc3009a15a219"
+  },
+  "sklearn_version": "1.9.1",
+  "training_rows": 852,
+  "pool_quarters": 4,
+  "first_quarter": "2025-4",
+  "last_quarter": "2026-3",
+  "cv_folds": 5,
+  "spatial_block_km": 2.0,
+  "area_radius_m": 500,
+  "area_min_tests": 30,
+  "model_settings": {
+    "knn": {
+      "n_neighbors": 10,
+      "weights": "uniform",
+      "metric": "haversine"
+    },
+    "random_forest": {
+      "n_estimators": 300,
+      "min_samples_leaf": 5,
+      "random_state": 42,
+      "context_imputation": "training median; all-empty columns use zero"
+    },
+    "hybrid": {
+      "n_estimators": 600,
+      "learning_rate": 0.03,
+      "max_depth": 6,
+      "subsample": 0.8,
+      "colsample_bytree": 0.8,
+      "random_state": 42
+    },
+    "physics_only": {},
+    "xgboost_only": {
+      "n_estimators": 600,
+      "learning_rate": 0.03,
+      "max_depth": 6,
+      "subsample": 0.8,
+      "colsample_bytree": 0.8,
+      "random_state": 42
+    }
+  },
+  "selection": "lowest area MAE, then highest area level accuracy, then model name",
+  "evaluation": "spatial out-of-fold; model-selection estimate, not independent holdout"
+}

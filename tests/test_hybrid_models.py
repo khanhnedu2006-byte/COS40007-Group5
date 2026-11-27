@@ -113,3 +113,34 @@ def test_regional_training_saves_a_reloadable_winner(tmp_path, monkeypatch):
     assert meta["feature_columns"] == bundle["model"].columns
     assert len(pd.read_csv(report_dir / "out_of_fold.csv")) == len(rows)
     assert np.isfinite(bundle["model"].predict(rows)).all()
+
+
+def test_standalone_cv_evaluators_return_expected_schema():
+    from speedmap.cli.train_hybrid import evaluate_hybrid
+    from speedmap.cli.train_physics_only import evaluate_physics_only
+    from speedmap.cli.train_xgboost_only import evaluate_xgboost_only
+
+    rows = tile_rows().reset_index(drop=True)
+    rows["theory_mbps"] = 100.0
+    expected_columns = [
+        "fold",
+        "model",
+        "train_rows",
+        "test_rows_scored",
+        "mae",
+        "rmse",
+        "level_accuracy",
+    ]
+    fast_params = {"n_estimators": 2, "max_depth": 2, "n_jobs": 1}
+    checks = [
+        ("xgboost_only", evaluate_xgboost_only(rows, n_folds=3, **fast_params)),
+        ("hybrid", evaluate_hybrid(rows, n_folds=3, **fast_params)),
+        ("physics_only", evaluate_physics_only(rows, n_folds=3)),
+    ]
+    for name, frame in checks:
+        assert list(frame.columns) == expected_columns
+        assert len(frame) == 3
+        assert (frame["model"] == name).all()
+        assert np.isfinite(frame[["mae", "rmse"]]).all().all()
+        assert (frame[["mae", "rmse"]] >= 0).all().all()
+        assert frame["level_accuracy"].between(0, 1).all()

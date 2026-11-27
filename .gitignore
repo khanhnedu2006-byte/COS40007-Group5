@@ -23,6 +23,12 @@ data/processed/*
 !data/**/.gitkeep
 artifacts/reports/*
 !artifacts/reports/.gitkeep
+!artifacts/reports/cv_knn.csv
+!artifacts/reports/cv_random_forest.csv
+!artifacts/reports/cv_xgboost_only.csv
+!artifacts/reports/cv_hybrid.csv
+!artifacts/reports/cv_physics_only.csv
+!artifacts/reports/regional/
 
 # Kết quả do model.py tạo ra (pipeline upload thành artefact)
 model_results.png
