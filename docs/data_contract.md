@@ -1,6 +1,6 @@
 # Data Contract: `data/processed/hanoi_train.csv`
 
-The feature pipeline produces this tile-quarter table; the separate Group Task 2 workflow and notebooks consume it. Regional model training and recorded-data mode use the pooled tile table described below.
+The feature pipeline produces this tile-quarter table; the five standalone tile-quarter CV scripts (`train_knn`, `train_random_forest`, `train_xgboost_only`, `train_hybrid`, `train_physics_only`), the separate Group Task 2 workflow, and the notebooks consume it. Regional model training and recorded-data mode use the pooled tile table described below.
 Change this file and `src/speedmap/config.py` together, and tell the team.
 
 One row = one Ookla tile (about 610 m) in one quarter.
@@ -91,7 +91,7 @@ KNN uses coordinates only. Random Forest requires the ordered `config.FEATURE_CO
 
 The shared PointFeaturizer uses the same processed tower/cell tables, pooled device activity and reference context grid for training and inference. Baselines exclude the physics column; hybrid and physics-only models require it. Static features and unlabeled activity counts are available across held-out blocks; target speeds never enter those features.
 
-The regional bundle is saved under `artifacts/models/regional/<run>/` with the selected model, ordered input columns, training settings/period, evaluation metrics and SHA-256 input fingerprints. The [training guide](training.md) describes the matching out-of-fold report files. Keep processed inputs and artifacts from the same run together, and read quadkeys as strings. Generated input files and saved models are excluded from Git.
+The regional bundle is saved under `artifacts/models/regional/<run>/` with the selected model, ordered input columns, training settings/period, evaluation metrics and SHA-256 input fingerprints. The [training guide](training.md) describes the matching out-of-fold report files and standalone tile-quarter CV reports. Keep processed inputs and artifacts from the same run together, and read quadkeys as strings. Raw downloads (`data/raw/*`) remain excluded from Git, while the canonical runtime/training CSVs (`hanoi_towers.csv`, `hanoi_cells.csv`, `hanoi_tiles.csv`, `hanoi_train.csv`), saved models (`artifacts/models/`), and CV/regional reports (`artifacts/reports/cv_*.csv`, `artifacts/reports/regional/`) are tracked in Git.
 
 The earlier 1.5 km comparison selected KNN with regional MAE **20.80 Mbps**, quality accuracy **73.84%**, and **80.10%** evaluated-click coverage. These replace earlier informal accuracy claims and are spatial out-of-fold model-selection results. Production sparse-area grid sampling is not measured by this evaluation. See [training.md](training.md) for full results and limitations.
 

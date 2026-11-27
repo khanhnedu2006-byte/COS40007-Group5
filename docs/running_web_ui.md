@@ -74,7 +74,7 @@ To switch modes, stop the API, set `SPEEDMAP_MODE` to a  value described in [Cho
 
 Set `SPEEDMAP_ROOT` before starting the launcher or API to use a different data/artifact root with the same `data/` and `artifacts/` layout, including `data/reference/`. Unset it to use the repository root. The provided Compose configuration does not forward this variable.
 
-For model mode, `SPEEDMAP_MODEL_NAME` defaults to `regional`. Leave `SPEEDMAP_MODEL_RUN` unset to load `LATEST`, or set it to a run directory name from `artifacts/models/regional/`. Use the scikit-learn version recorded in that run's metadata. Restart after changing data, artifacts, or environment variables.
+For model mode, `SPEEDMAP_MODEL_NAME` defaults to `regional`. Leave `SPEEDMAP_MODEL_RUN` unset to load `LATEST`, or set it to a run directory name from `artifacts/models/regional/`. Use the scikit-learn version recorded in that run's metadata. The repository tracks the latest regional bundle and its four matching interim/processed CSVs (`hanoi_towers.csv`, `hanoi_cells.csv`, `hanoi_tiles.csv`, `hanoi_train.csv`), so `actual`/`model` mode works directly after cloning once `requirements-model.txt` is installed. Restart after changing data, artifacts, or environment variables.
 
 ### Terminal 2: frontend
 

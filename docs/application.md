@@ -48,7 +48,7 @@ The Leaflet scene is isolated from form and panel state so typing cannot redraw 
 Train using the [regional training workflow](training.md), then supply these matching artifacts:
 
 - `artifacts/models/regional/<run>/model.joblib`, `metadata.json`, and `LATEST` unless a run is pinned.
-- The processed `hanoi_towers.csv`, `hanoi_cells.csv`, and pooled `hanoi_tiles.csv` used for that run.
+- The processed `hanoi_towers.csv`, `hanoi_cells.csv`, `hanoi_tiles.csv`, and `hanoi_train.csv` used for that run (the canonical regional bundle and these four matching CSVs are tracked in Git).
 - The checked-in Hanoi boundary and context grid. Keep the training inputs together; their SHA-256 fingerprints are recorded in model metadata and the report manifest, and canonical input fingerprints are checked when loading the model.
 - A compatible Python/scikit-learn runtime; use the scikit-learn version recorded in metadata. Baseline serving uses `requirements-app.txt`; the model requirements file also retains the separate hybrid project's XGBoost dependency.
 
@@ -59,7 +59,7 @@ In PowerShell, before starting the backend:
 ```powershell
 $env:SPEEDMAP_MODE = 'model'
 $env:SPEEDMAP_MODEL_NAME = 'regional'
-$env:SPEEDMAP_MODEL_RUN = '20261111-133102' # Replace with the actual approved run ID.
+$env:SPEEDMAP_MODEL_RUN = '20261127-150717' # Replace with the actual approved run ID.
 python -m uvicorn speedmap.api.main:app --reload
 ```
 

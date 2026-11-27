@@ -6,7 +6,7 @@ For an overview of each candidate, see [Models](models.md).
 
 ## Prerequisites
 
-Use the Python environment from [Fetch and prepare data](fetching_data.md). With it active, install `python -m pip install -r requirements-dev.txt` and `python -m pip install -e . --no-deps`. These baseline commands do not require TensorFlow or the Intel scikit-learn extension. Raw data is not included in a clone; fetch it or obtain matching processed tables from the data owner first.
+Use the Python environment from [Fetch and prepare data](fetching_data.md). With it active, install `python -m pip install -r requirements-dev.txt` and `python -m pip install -e . --no-deps`. Baseline commands do not require TensorFlow or the Intel scikit-learn extension; the full five-model comparison and XGBoost/hybrid standalone trainers require `requirements-model.txt`. Raw data (`data/raw/*`) is excluded from Git, while the canonical interim/processed tables (`hanoi_towers.csv`, `hanoi_cells.csv`, `hanoi_tiles.csv`, `hanoi_train.csv`), saved models, and CV/regional reports are tracked in Git so a fresh clone can serve or retrain without re-fetching raw inputs unless rebuilding from scratch.
 
 The required prepared files are `hanoi_tiles.csv`, `hanoi_towers.csv` and `hanoi_cells.csv`, plus the checked-in boundary/context grid. Run commands from the repository root. Activate `.venv` on Linux/macOS or `.venv\Scripts\Activate.ps1` in PowerShell, or use that environment's Python executable directly.
 
@@ -51,9 +51,9 @@ The all-model winner is saved as a `regional_model` bundle and the app computes 
 
 ## Artifacts and provenance
 
-Models are saved to `artifacts/models/regional/<run>/`, with `model.joblib`, `metadata.json`, and a parent `LATEST` pointer. Models and processed data are local generated artifacts excluded from Git.
+Models are saved to `artifacts/models/regional/<run>/` (and `artifacts/models/<model>/<run>/` for standalone runs), with `model.joblib`, `metadata.json`, and a parent `LATEST` pointer. All saved models under `artifacts/models/` and the four canonical interim/processed CSVs (`data/interim/hanoi_towers.csv`, `data/interim/hanoi_cells.csv`, `data/processed/hanoi_tiles.csv`, `data/processed/hanoi_train.csv`) are tracked in Git, while raw downloads (`data/raw/*`), `data/interim/ookla_clean.csv`, and legacy `data/processed/5g_train.csv` remain excluded.
 
-Evidence is saved locally to `artifacts/reports/regional/<run>/`. Generated reports are ignored by Git; share or archive the relevant run separately when needed:
+Evidence is saved to `artifacts/reports/regional/<run>/` and `artifacts/reports/cv_<model>.csv`. Those evaluation reports are tracked in Git, while exploratory PNG plots under `artifacts/reports/` remain ignored:
 
 - `fold_metrics.csv`: held-out tile metrics and row counts for each fold/model.
 - `out_of_fold.csv`: row position, quadkey, coordinates, block, tests, measured target, fold ID, and each model's prediction. Read with `dtype={"quadkey": str}`.
@@ -64,7 +64,29 @@ Use a compatible runtime, including the recorded scikit-learn version, to load j
 
 ## Current 12-district comparison: 500 m
 
-Run `20261127-145814` compared all five models on 852 pooled tiles. Random Forest was selected with regional MAE **28.88 Mbps** and quality accuracy **75.77%**. The 549 qualifying circles represent **64.44%** of tile-centred circles; their majority-quality baseline was **74.86%**. These are spatial out-of-fold model-selection estimates, not independent holdout results.
+Run `20261127-150717` compared all five models on 852 pooled tiles. Random Forest was selected with regional MAE **28.88 Mbps** and quality accuracy **75.77%**. The 549 qualifying circles represent **64.44%** of tile-centred circles; their majority-quality baseline was **74.86%**. These are spatial out-of-fold model-selection estimates, not independent holdout results.
+
+## Standalone tile-quarter model CV
+
+Each of the five models also has a standalone tile-quarter CV and training script (with corresponding `speedmap-train-*` console scripts in `pyproject.toml`):
+
+```sh
+python -m speedmap.cli.train_knn
+python -m speedmap.cli.train_random_forest
+python -m speedmap.cli.train_xgboost_only
+python -m speedmap.cli.train_hybrid
+python -m speedmap.cli.train_physics_only
+```
+
+Each script reads `data/processed/hanoi_train.csv` (6,232 tile-quarter rows inside the 12-district study area), runs five spatial `GroupKFold` splits grouped by `block_id` scoring test rows with `tests >= 3`, writes `artifacts/reports/cv_<model>.csv` (`fold,model,train_rows,test_rows_scored,mae,rmse,level_accuracy`), and saves the all-row fit under `artifacts/models/<model>/<run>/` with a `LATEST` pointer. These evaluate tile-quarter data rather than 500 m pooled regions and do not create or update the Web UI's `regional` bundle.
+
+| Model | Run ID | Mean MAE (Mbps) | Mean RMSE (Mbps) | Mean Level Accuracy | Report |
+| --- | --- | ---: | ---: | ---: | --- |
+| `knn` | `20261127-151000` | 52.94 | 71.01 | 52.35% | `artifacts/reports/cv_knn.csv` |
+| `random_forest` | `20261127-151012` | 51.24 | 68.79 | 52.48% | `artifacts/reports/cv_random_forest.csv` |
+| `xgboost_only` | `20261127-151029` | 50.71 | 71.96 | 55.06% | `artifacts/reports/cv_xgboost_only.csv` |
+| `hybrid` | `20261127-151044` | 52.54 | 73.78 | 53.41% | `artifacts/reports/cv_hybrid.csv` |
+| `physics_only` | `20261127-151045` | 122.34 | 161.76 | 23.09% | `artifacts/reports/cv_physics_only.csv` |
 
 ## Historical baseline comparison: 500 m
 
@@ -106,7 +128,7 @@ Regression checks, with the Python environment active:
 python -m pytest tests/test_regional_training.py tests/test_knn.py tests/test_random_forest.py tests/test_area.py tests/test_features.py tests/test_predictor.py -q
 ```
 
-The separate `speedmap.cli.group_task_model` TensorFlow/Group Task 2 exercise consumes tile-quarter rows and writes `metrics.txt` and `model_results.png`; it does not create the regional app bundle or the spatial OOF comparison described here. Its `python -m speedmap.cli.group_task_model --check-data` validates inputs without TensorFlow. `python -m speedmap.cli.group_task_model --data-file data/ci/hanoi_train.csv --check-data` also checks the committed CI snapshot manifest. Refresh that snapshot with `python -m speedmap.cli.sync_ci_data` when intentionally updating the canonical data. The legacy individual baseline scripts likewise do not select or save the app's `regional` bundle.
+The separate `speedmap.cli.group_task_model` TensorFlow/Group Task 2 exercise consumes tile-quarter rows and writes `metrics.txt` and `model_results.png`; it does not create the regional app bundle or the spatial OOF comparison described here. Its `python -m speedmap.cli.group_task_model --check-data` validates inputs without TensorFlow. `python -m speedmap.cli.group_task_model --data-file data/ci/hanoi_train.csv --check-data` also checks the committed CI snapshot manifest. Refresh that snapshot with `python -m speedmap.cli.sync_ci_data` when intentionally updating the canonical data. The five standalone tile-quarter CV scripts (`train_knn`, `train_random_forest`, `train_xgboost_only`, `train_hybrid`, `train_physics_only`) likewise do not select or save the app's `regional` bundle.
 
 If you need to reproduce the separate TensorFlow exercise, use a compatible Python 3.11 environment, install its TensorFlow dependency, then run:
 

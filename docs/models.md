@@ -54,6 +54,8 @@ Both workflows use five spatial `GroupKFold` splits grouped by 2 km blocks. Each
 
 Models and metadata are stored in `artifacts/models/regional/<run>/`, with a `LATEST` pointer in the parent directory. In model mode, the API loads the selected run and its available candidates. The web model picker or the optional `model` parameter to `/api/predict` can choose a candidate for a request; otherwise the saved winner is used. Older bundles may contain only one model. Keep the matching processed data and reference files with the artifact: input fingerprints and feature contracts are checked on loading. See the [API contract](api_contract.md) and [run guide](running_web_ui.md).
 
+Standalone tile-quarter CV and training scripts are also available for each of the five models (`speedmap.cli.train_knn`, `train_random_forest`, `train_xgboost_only`, `train_hybrid`, and `train_physics_only`). Each evaluates five spatial `GroupKFold` splits on `data/processed/hanoi_train.csv`, writes `artifacts/reports/cv_<model>.csv`, and saves an all-row model under `artifacts/models/<model>/<run>/` with a `LATEST` pointer; the Web UI still serves the `regional` bundle. Trained models under `artifacts/models/`, evaluation reports under `artifacts/reports/regional/` and `artifacts/reports/cv_*.csv`, and the four matching interim/processed CSVs are tracked in Git.
+
 ## Uncertainty and limitations
 
 The hybrid evaluation also measures tile-level split-conformal intervals using a separate calibration split. Their reported coverage and width concern held-out tiles; they do not establish coverage for regional estimates and are not returned as regional uncertainty intervals by the app.

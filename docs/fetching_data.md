@@ -1,6 +1,6 @@
 # Fetch and prepare Hanoi data
 
-Use this guide before [training models](training.md) or running the Web UI in recorded-data mode. Run commands from the repository root after installing the package. Raw data and generated interim/processed tables are excluded from Git; cloning the source alone does not provide them. Set `SPEEDMAP_ROOT` before running Python to use a different root with the same `data/` and `artifacts/` layout, including the reference files. Explicit relative paths such as `--out` resolve from the current working directory.
+Use this guide before [training models](training.md) or running the Web UI in recorded-data mode. Run commands from the repository root after installing the package. Raw data (`data/raw/*`), `data/interim/ookla_clean.csv`, and legacy `data/processed/5g_train.csv` are excluded from Git, while the four canonical interim/processed CSVs (`hanoi_towers.csv`, `hanoi_cells.csv`, `hanoi_tiles.csv`, `hanoi_train.csv`) are tracked in Git. Set `SPEEDMAP_ROOT` before running Python to use a different root with the same `data/` and `artifacts/` layout, including the reference files. Explicit relative paths such as `--out` resolve from the current working directory.
 
 ## 1. Create the Python environment
 
@@ -78,7 +78,7 @@ The feature step writes:
 
 - `data/interim/ookla_clean.csv`: cleaned observations inside Hanoi.
 - `data/processed/hanoi_tiles.csv`: one observation per tile, pooled over the latest four quarters available in the raw file; input to regional baseline training and recorded-data mode.
-- `data/processed/hanoi_train.csv`: one observation per tile-quarter; used by the separate TensorFlow exercise.
+- `data/processed/hanoi_train.csv`: one observation per tile-quarter; used by the five standalone tile-quarter CV scripts (`train_knn`, `train_random_forest`, `train_xgboost_only`, `train_hybrid`, `train_physics_only`) and the separate TensorFlow exercise.
 - `data/ci/hanoi_train.csv` and its manifest: refreshed automatically from the canonical tile-quarter table. These are tracked; review their diff when preparing a data update.
 
 Physics is skipped by default. The unused `theory_mbps` column remains empty and does not prevent baseline training. For the five-model comparison, install `requirements-model.txt`, rebuild features with `--step features --include-physics`, then run `--step hybrid`. `--step all` also builds the physics feature and runs that comparison; it additionally requires context inputs for the context step.
