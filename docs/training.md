@@ -64,7 +64,7 @@ Use a compatible runtime, including the recorded scikit-learn version, to load j
 
 ## Current 12-district comparison: 500 m
 
-Run `20261118-145343` compared all five models on 852 pooled tiles. Random Forest was selected with regional MAE **28.88 Mbps** and quality accuracy **75.77%**. The 549 qualifying circles represent **64.44%** of tile-centred circles; their majority-quality baseline was **74.86%**. These are spatial out-of-fold model-selection estimates, not independent holdout results.
+Run `20261127-145814` compared all five models on 852 pooled tiles. Random Forest was selected with regional MAE **28.88 Mbps** and quality accuracy **75.77%**. The 549 qualifying circles represent **64.44%** of tile-centred circles; their majority-quality baseline was **74.86%**. These are spatial out-of-fold model-selection estimates, not independent holdout results.
 
 ## Historical baseline comparison: 500 m
 

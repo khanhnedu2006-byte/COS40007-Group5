@@ -15,10 +15,12 @@ frontend/playwright-report/
 !*.env.example
 data/raw/*
 data/interim/*
+!data/interim/hanoi_towers.csv
+!data/interim/hanoi_cells.csv
 data/processed/*
+!data/processed/hanoi_tiles.csv
+!data/processed/hanoi_train.csv
 !data/**/.gitkeep
-artifacts/models/*
-!artifacts/models/.gitkeep
 artifacts/reports/*
 !artifacts/reports/.gitkeep
 

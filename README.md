@@ -175,7 +175,7 @@ The feature step skips physics by default and leaves the unused `theory_mbps` co
 
 The model is saved under `artifacts/models/regional/<run>/`. Evidence is saved under `artifacts/reports/regional/<run>/`: `summary.csv`, `fold_metrics.csv`, `out_of_fold.csv` and `manifest.json`. Each parent directory has a `LATEST` pointer. Read the [training and evaluation guide](docs/training.md) for metric definitions and limitations. The older individual baseline scripts evaluate tile-quarter data and do not create the app's regional bundle.
 
-The current **500 m** five-model run (`20261118-145343`) selected **Random Forest** on the 12-district study area: regional MAE **28.88 Mbps** and quality-level accuracy **75.77%**, across **549 of 852** tile-centred regions meeting the 30-test threshold. The majority-quality baseline is **74.86%**. These are spatial out-of-fold model-selection results, not an independent holdout estimate; see the [training guide](docs/training.md).
+The current **500 m** five-model run (`20261127-145814`) selected **Random Forest** on the 12-district study area: regional MAE **28.88 Mbps** and quality-level accuracy **75.77%**, across **549 of 852** tile-centred regions meeting the 30-test threshold. The majority-quality baseline is **74.86%**. These are spatial out-of-fold model-selection results, not an independent holdout estimate; see the [training guide](docs/training.md).
 
 Double-click **`start.bat`**, or start the backend manually on macOS/Linux:
 
