@@ -91,6 +91,9 @@ def evaluate_random_forest(
 def main() -> None:
     """Evaluate Random Forest, then save the report and final fitted model."""
     data = pd.read_csv(config.TRAIN_FILE, dtype={"quadkey": str})
+    from speedmap.data.boundary import require_study_area
+
+    require_study_area(data)
     results = evaluate_random_forest(data)
 
     config.ARTIFACTS_REPORTS.mkdir(parents=True, exist_ok=True)

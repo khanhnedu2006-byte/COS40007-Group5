@@ -53,7 +53,7 @@ def test_inside_points_return_consistent_complete_predictions(client, lat, lon):
     )
 
 
-@pytest.mark.parametrize("lat,lon", [(10.7769, 106.7009), (21.3089, 105.6049)])
+@pytest.mark.parametrize("lat,lon", [(10.7769, 106.7009), (21.3089, 105.6049), (21.17, 105.85)])
 def test_outside_polygon_is_rejected_even_inside_old_bounding_box(client, lat, lon):
     response = client.get("/api/predict", params={"lat": lat, "lon": lon})
     assert response.status_code == 422

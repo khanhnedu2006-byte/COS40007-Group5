@@ -1,14 +1,14 @@
 {
   "schema_version": 1,
   "source": "data/processed/hanoi_train.csv",
-  "sha256": "4378f0a0e34ba7c9c038e4f8992019b189a219051c259aefb4984dd4dec57a1c",
-  "rows": 24679,
+  "sha256": "15afa031bbb271e071b4f7293bf0dcd6f16f25836303101b7a167f5887fea3bc",
+  "rows": 6232,
   "first_quarter": "2024-4",
   "last_quarter": "2026-3",
   "data_fingerprints": {
-    "towers": "0bbeb8b54a26514101f7c667df4a652b5d10e0212613c4f83a72b2d24bfa54d1",
-    "training": "4378f0a0e34ba7c9c038e4f8992019b189a219051c259aefb4984dd4dec57a1c",
-    "tiles": "28e33f03a781ee9ef01133516d5222e98527116cac426cf41eeedf208c021998",
-    "boundary": "738305f72192a0baa20823a6fe1aae853d0fa756b85b52b77c45f0e5be0bbd21"
+    "towers": "1e57e97259febe7a1b9e79bfe587591799035ed2343abb783cc9cd96b369324c",
+    "training": "15afa031bbb271e071b4f7293bf0dcd6f16f25836303101b7a167f5887fea3bc",
+    "tiles": "0d9d8d6ae0078cc364d902c81c74606a84db39ae0d0156d249070e2ffca6461a",
+    "boundary": "9df1a4cafad4a1418c22f2361ab779c639327c63bdc54d3f31ec2d3d2f38c408"
   }
 }

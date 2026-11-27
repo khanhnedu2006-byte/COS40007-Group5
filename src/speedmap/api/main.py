@@ -141,7 +141,7 @@ def create_app(mode: str | None = None, predictor=None) -> FastAPI:
         if not config.inside_hanoi(lat, lon):
             raise HTTPException(
                 422,
-                "This point is outside Hanoi. Choose a location inside the city boundary.",
+                "This point is outside Hanoi's 12-district study area. Choose a location inside the boundary.",
             )
         try:
             service = get_predictor()

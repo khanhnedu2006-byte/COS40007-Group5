@@ -20,7 +20,7 @@ Built for **COS40007 — Artificial Intelligence Engineering** at Swinburne Univ
 
 ## What you can explore
 
-- **Hanoi only:** map navigation stays around the city, with predictions restricted to its administrative boundary.
+- **Hanoi only:** map predictions are restricted to the historical 12 urban districts.
 - **Pick a place:** click the map, enter coordinates, or try Hoàn Kiếm, West Lake, Cầu Giấy and Hà Đông.
 - **Understand the region:** typical download speed, a quality level and a 500 m circle. Sampling support identifies sparse regions that need extra grid points.
 - **Focus on performance:** a quiet basemap and a selected location coloured by download quality. Tower markers and nearest-tower connections are optional under Layers.
@@ -175,7 +175,7 @@ The feature step skips physics by default and leaves the unused `theory_mbps` co
 
 The model is saved under `artifacts/models/regional/<run>/`. Evidence is saved under `artifacts/reports/regional/<run>/`: `summary.csv`, `fold_metrics.csv`, `out_of_fold.csv` and `manifest.json`. Each parent directory has a `LATEST` pointer. Read the [training and evaluation guide](docs/training.md) for metric definitions and limitations. The older individual baseline scripts evaluate tile-quarter data and do not create the app's regional bundle.
 
-The **500 m** baseline run (`20261111-152722`) selected **Random Forest**: regional MAE **33.54 Mbps**, quality-level accuracy **69.54%**, compared with KNN's **35.96 Mbps** and **68.19%**. Only **811 of 5,212** tile-centred regions (15.56%) meet the unchanged 30-test threshold; majority-quality accuracy is **68.68%** on that subset. These are spatial out-of-fold model-selection results, not an independent holdout estimate. The [training guide](docs/training.md) retains the historical 1.5 km comparison and explains the limits of the smaller radius.
+The current **500 m** five-model run (`20261118-145343`) selected **Random Forest** on the 12-district study area: regional MAE **28.88 Mbps** and quality-level accuracy **75.77%**, across **549 of 852** tile-centred regions meeting the 30-test threshold. The majority-quality baseline is **74.86%**. These are spatial out-of-fold model-selection results, not an independent holdout estimate; see the [training guide](docs/training.md).
 
 Double-click **`start.bat`**, or start the backend manually on macOS/Linux:
 
@@ -287,7 +287,7 @@ Both workflows target pushes and pull requests to `main` and support manual runs
 | `No module named speedmap` | Run the editable installation command from the project root using the same virtual environment as the backend. |
 | Port `5173` or `8000` is already in use | Stop the other local instance. Keep the documented ports unless you also update the proxy configuration. |
 | The map background does not load | Check internet access or switch to **Detailed streets** under Layers. Neighbourhood shortcuts and coordinate entry still work. |
-| A location is rejected | Predictions are available only inside Hanoi's administrative boundary, including when using browser location. |
+| A location is rejected | Predictions are available only inside the historical 12-district study area, including when using browser location. |
 | The health response says `model_loaded: false` | This is expected in demo mode. Check `ready` and `mode` as well. |
 | A copied project reports a missing Python installation | Update the launcher files and run `demo.bat` again. It validates the local Python runtime and backs up an incompatible `.venv/` before creating a new one. |
 | Python 3.14 setup fails | Use 64-bit Python with pip and the latest launcher. Setup upgrades packaging tools before installing the application dependencies. Read the printed Python version and last error lines; model/training dependencies may have separate requirements. |
@@ -307,6 +307,6 @@ Both workflows target pushes and pull requests to `main` and support manual runs
 
 ## Data and attribution
 
-The prediction pipeline uses **[Ookla Open Data](https://github.com/teamookla/ookla-open-data)** (CC BY-NC-SA 4.0) and **[OpenCelliD](https://opencellid.org/)** (CC BY-SA 4.0). The Hanoi boundary comes from **[geoBoundaries](https://www.geoboundaries.org/)** (CC BY 4.0). The default basemap is © **[Stadia Maps](https://stadiamaps.com/attribution/)**, **[OpenMapTiles](https://openmaptiles.org/)** and **[OpenStreetMap contributors](https://www.openstreetmap.org/copyright)**; the detailed style uses OpenStreetMap tiles. Local Stadia development needs no API key; public hosting needs domain authentication as described in the [application guide](docs/application.md).
+The prediction pipeline uses **[Ookla Open Data](https://github.com/teamookla/ookla-open-data)** (CC BY-NC-SA 4.0) and **[OpenCelliD](https://opencellid.org/)** (CC BY-SA 4.0). The 2020 district boundary comes from **[geoBoundaries](https://www.geoboundaries.org/)**, sourced from OCHA ROAP and the Government of Viet Nam (CC BY 3.0 IGO). The default basemap is © **[Stadia Maps](https://stadiamaps.com/attribution/)**, **[OpenMapTiles](https://openmaptiles.org/)** and **[OpenStreetMap contributors](https://www.openstreetmap.org/copyright)**; the detailed style uses OpenStreetMap tiles. Local Stadia development needs no API key; public hosting needs domain authentication as described in the [application guide](docs/application.md).
 
 These credits describe the project data sources. Demo speeds are simulated; tower locations use the local dataset when available, otherwise simulated locations.

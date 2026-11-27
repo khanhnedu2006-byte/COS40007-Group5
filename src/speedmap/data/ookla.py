@@ -50,7 +50,7 @@ def clean(df: pd.DataFrame) -> pd.DataFrame:
     """Return a cleaned copy.
 
     Rules (values in config):
-    - keep only tiles inside the Hanoi administrative boundary
+    - keep only tiles inside the historical 12-district study area
     - drop rows with missing download, latitude or longitude, or download <= 0
     - drop latency > MAX_LATENCY_MS
     - drop extreme download (above the 99.5th percentile) in tiles with tests < MIN_TESTS_FOR_EVAL

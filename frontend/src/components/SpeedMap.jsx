@@ -71,11 +71,11 @@ export default function SpeedMap({ towers, boundary, area, showTowers, showBound
         <div className="map-quality-key">{QUALITY.map((quality) => <div key={quality.name}>
           <span className="map-quality-label"><i style={{ backgroundColor: quality.color }} />{quality.name}</span><small>{quality.range}</small>
         </div>)}</div>
-        {showBoundary && <div className="map-context-key"><span className="key-boundary" />Hanoi city boundary</div>}
+        {showBoundary && <div className="map-context-key"><span className="key-boundary" />12-district study area</div>}
         {result && <div className="map-context-key"><span className="key-boundary" />{((result.area_radius_m ?? 500) / 1000).toLocaleString()} km prediction radius</div>}
         {showTowers && <div className="map-context-key"><span className="key-tower" />{simulatedTowers ? "Simulated towers" : "Dataset cell locations"}</div>}
       </div>
-      <div className="map-hint" role="status"><span className={loading ? "hint-spinner" : "hint-dot"} />{disabled ? "Waiting for the local service" : loading ? "Exploring your location…" : selected ? "Explore another location inside Hanoi" : "Hanoi only. Click inside the city boundary."}</div>
+      <div className="map-hint" role="status"><span className={loading ? "hint-spinner" : "hint-dot"} />{disabled ? "Waiting for the local service" : loading ? "Exploring your location…" : selected ? "Explore another location in the study area" : "Click inside the 12-district study area."}</div>
       <div className="map-controls">
         <span className="compass" aria-hidden="true">N<span>↑</span></span>
         <div className="zoom-buttons"><button aria-label="Zoom in" disabled={zoom >= 18} onClick={() => mapRef.current?.zoomIn()}><Icon name="plus" /></button><button aria-label="Zoom out" disabled={zoom <= 10} onClick={() => mapRef.current?.zoomOut()}><Icon name="minus" /></button></div>

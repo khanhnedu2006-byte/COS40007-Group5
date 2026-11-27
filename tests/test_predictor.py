@@ -133,6 +133,15 @@ def test_unversioned_model_is_rejected(saved_model):
         Predictor()
 
 
+def test_model_without_study_area_provenance_is_rejected(saved_model):
+    path = saved_model / "metadata.json"
+    metadata = json.loads(path.read_text())
+    metadata["data_fingerprints"].pop("boundary")
+    path.write_text(json.dumps(metadata))
+    with pytest.raises(ValueError, match="study-area provenance"):
+        Predictor()
+
+
 def test_pinned_older_run_keeps_its_evaluated_radius(saved_model):
     import joblib
 

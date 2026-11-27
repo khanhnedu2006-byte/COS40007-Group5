@@ -69,6 +69,12 @@ class Predictor:
                 if path.is_relative_to(config.ROOT)
                 and str(path.relative_to(config.ROOT)) in hashes
             }
+        if not isinstance(fingerprints, dict) or not {
+            "tiles", "boundary"
+        } <= fingerprints.keys():
+            raise ValueError(
+                "The saved model lacks study-area provenance. Retrain the regional model."
+            )
         verify_fingerprints(fingerprints)
         self.data_fingerprints = fingerprints
         self.towers = load_tower_table()

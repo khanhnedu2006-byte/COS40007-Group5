@@ -13,6 +13,7 @@ import pandas as pd
 from sklearn.neighbors import BallTree
 
 from speedmap import config
+from speedmap.data.boundary import contains
 from speedmap.features.spatial import EARTH_RADIUS_M, KM_PER_DEG_LAT
 
 
@@ -52,7 +53,7 @@ class AreaSampler:
         n = int(radius_m // config.AREA_GRID_STEP_M)
         dy, dx = np.meshgrid(np.arange(-n, n + 1), np.arange(-n, n + 1), indexing="ij")
         keep = np.hypot(dy, dx) * config.AREA_GRID_STEP_M <= radius_m
-        return pd.DataFrame(
+        points = pd.DataFrame(
             {
                 "latitude": lat + dy[keep] * step_lat,
                 "longitude": lon + dx[keep] * step_lon,
@@ -60,6 +61,7 @@ class AreaSampler:
                 "source": "grid",
             }
         )
+        return points[contains(points.latitude, points.longitude)].reset_index(drop=True)
 
     def points(
         self, lat: float, lon: float, radius_m: float = config.AREA_RADIUS_M

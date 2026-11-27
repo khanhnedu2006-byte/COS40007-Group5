@@ -37,7 +37,7 @@ The backend must use the same featurizer for clicked points.
 
 Rebuild everything from the raw files: `python -m speedmap.cli.run_pipeline --step towers` then `--step features`.
 
-Only tiles **inside the Hanoi administrative boundary** are kept (`data/reference/hanoi_boundary.geojson`, geoBoundaries, CC BY 4.0).
+Only tile centres inside the historical 12-district study area are kept (`data/reference/hanoi_inner_boundary.geojson`). The dissolved 2020 district polygons are from geoBoundaries VNM ADM2, sourced from OCHA ROAP and the Government of Viet Nam (CC BY 3.0 IGO). The study area includes Ba Đình, Bắc Từ Liêm, Cầu Giấy, Đống Đa, Hà Đông, Hai Bà Trưng, Hoàn Kiếm, Hoàng Mai, Long Biên, Nam Từ Liêm, Tây Hồ and Thanh Xuân.
 
 # `data/processed/hanoi_tiles.csv` (one row per tile)
 
@@ -68,12 +68,12 @@ OpenCelliD LTE/NR cells (same filter as towers, not merged): latitude, longitude
 
 # `data/interim/hanoi_towers.csv`
 
-OpenCelliD mobile cells (LTE/NR) inside Hanoi or within `config.TOWER_BUFFER_KM` (5 km) of the border, merged into towers (~100 m).
+OpenCelliD mobile cells (LTE/NR) inside the study area or within `config.TOWER_BUFFER_KM` (5 km) of its border, merged into towers (~100 m).
 Columns: tower_id, latitude, longitude, cells, operators, samples, inside_hanoi, source (`opencellid` or `osm`).
 OSM masts (`tower:type=communication`) are added only when more than 200 m from an OpenCelliD tower.
 Positions are **estimated from phone measurements** (they cluster along main roads), not official site locations.
 
-# Example data snapshot (8 Nov 2026)
+# Historical full-Hanoi data snapshot (8 Nov 2026)
 Rebuild: `python -m speedmap.cli.run_pipeline --step towers` then `--step features`.
 - hanoi_train.csv: 24,679 rows, 6,250 tiles inside Hanoi, quarters 2024-4 to 2026-3
 - hanoi_tiles.csv: 5,212 tiles pooled over 2025-4 to 2026-3; reliability low 1,874 / medium 1,710 / high 1,628
@@ -81,9 +81,9 @@ Rebuild: `python -m speedmap.cli.run_pipeline --step towers` then `--step featur
 - hanoi_context_grid.npz: 870 x 730 grid, 9 layers (population total inside Hanoi 8.24 million)
 - hanoi_towers.csv: 2,398 towers (2,315 OpenCelliD + 83 OpenStreetMap telecom masts; 2,153 inside Hanoi). Column `source` tells them apart.
 
-# Regional baseline training contract (11 Nov 2026)
+# Regional baseline training contract (11 Nov 2026; historical full-Hanoi counts)
 
-The app's training entrypoint now consumes **hanoi_tiles.csv**, with one pooled row per tile over the latest four quarters, rather than the tile-quarter table. Rebuild towers/cells and both feature tables before training; older processed files lack the current infrastructure, activity and context columns. The rebuilt pooled table has **5,212 rows, 40 columns and 831 spatial blocks**, spanning 2025 Q4–2026 Q3.
+The app's training entrypoint now consumes **hanoi_tiles.csv**, with one pooled row per tile over the latest four quarters, rather than the tile-quarter table. Rebuild towers/cells and both feature tables before training; older processed files lack the current infrastructure, activity and context columns. The historical full-Hanoi pooled table had **5,212 rows**. The 12-district rebuild on 18 November has **852 rows**, spanning 2025 Q4–2026 Q3.
 
 The feature CLI skips physics by default: `theory_mbps` is intentionally NaN and the remaining features and schema are unchanged. Use `--step features --include-physics` to calculate the theory feature for hybrid work. The Python table builders and PointFeaturizer accept `include_physics=False` for baseline callers; their default retains the physics-enabled behavior used by existing notebooks. The validator accepts the same flag, without relaxing validation of required non-physics columns.
 
@@ -97,4 +97,4 @@ The earlier 1.5 km comparison selected KNN with regional MAE **20.80 Mbps**, qua
 
 # 500 m regional output
 
-The default output/evaluation radius is **500 m** (`config.AREA_RADIUS_M`); this does not change the pooled tile targets, feature radii or 2 km spatial CV groups. Run `20261111-152722` selects Random Forest using spatial OOF predictions: MAE **33.54 Mbps**, exact-quality accuracy **69.54%**, coverage **15.56%** (811 qualifying measured regions). The earlier 1.5 km scores above are historical. Tile-centre spacing is about 569 m or more, so the 500 m evaluation has one observation per tile-centred circle; arbitrary UI circles and their added grid samples have different support. See [training.md](training.md#baseline-comparison-500-m) for interpretation and model loading.
+The default output/evaluation radius is **500 m** (`config.AREA_RADIUS_M`); this does not change the pooled tile targets, feature radii or 2 km spatial CV groups. Historical full-Hanoi run `20261111-152722` selected Random Forest using spatial OOF predictions: MAE **33.54 Mbps**, exact-quality accuracy **69.54%**, coverage **15.56%** (811 qualifying measured regions). The earlier 1.5 km scores above are historical. Tile-centre spacing is about 569 m or more, so the 500 m evaluation has one observation per tile-centred circle; arbitrary UI circles and their added grid samples have different support. See [training.md](training.md#baseline-comparison-500-m) for interpretation and model loading.

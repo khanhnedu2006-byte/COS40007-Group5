@@ -25,7 +25,7 @@ TOWERS_FILE = DATA_INTERIM / "hanoi_towers.csv"
 CELLS_FILE = DATA_INTERIM / "hanoi_cells.csv"
 TRAIN_FILE = DATA_PROCESSED / "hanoi_train.csv"
 TILES_FILE = DATA_PROCESSED / "hanoi_tiles.csv"
-HANOI_BOUNDARY_FILE = ROOT / "data" / "reference" / "hanoi_boundary.geojson"
+HANOI_BOUNDARY_FILE = ROOT / "data" / "reference" / "hanoi_inner_boundary.geojson"
 CONTEXT_GRID_FILE = ROOT / "data" / "reference" / "hanoi_context_grid.npz"
 CONTEXT_GRID_RES_DEG = 0.001  # ~110 m x 104 m
 
@@ -135,7 +135,7 @@ def quality_level(download_mbps: float) -> str:
 
 
 def inside_hanoi(lat: float, lon: float) -> bool:
-    """True if the point is inside the Hanoi administrative boundary."""
+    """True inside the historical 12-district study area."""
     from speedmap.data.boundary import contains
 
     return bool(contains(lat, lon)[0])

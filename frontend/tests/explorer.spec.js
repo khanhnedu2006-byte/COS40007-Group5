@@ -20,10 +20,10 @@ test("explore a neighbourhood and display the regional simulated estimate", asyn
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
-test("coordinate entry rejects points outside the actual city boundary", async ({ page }) => {
+test("coordinate entry rejects points in Hanoi outside the study area", async ({ page }) => {
   const predictionRequests = [];
   page.on("request", (request) => { if (request.url().includes("/api/predict?")) predictionRequests.push(request.url()); });
-  await page.getByRole("textbox", { name: "Latitude and longitude" }).fill("21.3089, 105.6049");
+  await page.getByRole("textbox", { name: "Latitude and longitude" }).fill("21.17, 105.85");
   await page.getByRole("button", { name: "Explore coordinates", exact: true }).click();
   await expect(page.locator(".error-panel")).toContainText("outside Hanoi");
   await expect(page.locator(".download-value")).toHaveCount(0);

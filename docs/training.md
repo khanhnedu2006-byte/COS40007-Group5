@@ -1,5 +1,7 @@
 # Regional baseline training and evaluation
 
+The study area is the union of Hanoi’s 12 former urban districts, based on 2020 district boundaries. Feature preparation and all current training and spatial evaluation must use tiles inside this polygon. Earlier comparisons below used the full Hanoi administrative area and are historical; they do not measure the current study area. Rebuild features and retrain after changing the boundary.
+
 For an overview of each candidate, see [Models](models.md).
 
 ## Prerequisites
@@ -60,7 +62,11 @@ Evidence is saved locally to `artifacts/reports/regional/<run>/`. Generated repo
 
 Use a compatible runtime, including the recorded scikit-learn version, to load joblib artifacts. Supply the matching processed tiles, towers, cells and context grid when serving them. Pin the run with `SPEEDMAP_MODEL_RUN` and restart the API after changing it.
 
-## Baseline comparison: 500 m
+## Current 12-district comparison: 500 m
+
+Run `20261118-145343` compared all five models on 852 pooled tiles. Random Forest was selected with regional MAE **28.88 Mbps** and quality accuracy **75.77%**. The 549 qualifying circles represent **64.44%** of tile-centred circles; their majority-quality baseline was **74.86%**. These are spatial out-of-fold model-selection estimates, not independent holdout results.
+
+## Historical baseline comparison: 500 m
 
 Historical run `20261111-152722` reran the five identical spatial folds on the same 5,212 pooled tiles and refitted the selected winner. The scoring radius is **500 m**; the 2 km CV blocks, model settings, data, and 30-test minimum are unchanged.
 

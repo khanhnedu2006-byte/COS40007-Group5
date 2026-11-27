@@ -13,7 +13,7 @@ The app estimates typical download speed in a circle around an input coordinate 
 
 ## GET /api/boundary
 
-Returns Hanoi's administrative boundary as a GeoJSON FeatureCollection, using the same local polygon as coordinate validation.
+Returns the historical 12-district study-area boundary as a GeoJSON FeatureCollection, using the same polygon as coordinate validation.
 
 ## GET /api/towers
 
@@ -47,7 +47,7 @@ Example from the saved Random Forest regional run:
 - `area_download_mbps`: non-negative regional download estimate, rounded to one decimal. `area_quality_level` uses the same displayed value: Poor <15, Fair <100, Good <200, otherwise Excellent.
 - `area_radius_m`: radius in metres, currently 500; the map draws this circle.
 - `area_points = area_ookla_tiles + area_grid_points`. Model mode samples measured tile centres in the circle, weighted by their test counts. Those counts define sampling support; the output pools model predictions rather than measured speeds.
-- In model mode, with fewer than five measured tiles, add grid points spaced 300 m apart with unit weight, including when there are no measured tiles. Positive `area_grid_points` identifies sparse support. The full circle is sampled even when it crosses the city boundary; only its input centre must be inside Hanoi.
+- In model mode, with fewer than five measured tiles, add grid points spaced 300 m apart with unit weight, including when there are no measured tiles. Positive `area_grid_points` identifies sparse support. Grid points outside the study-area polygon are excluded, so circles crossing the boundary are sampled only within it.
 - `nearest_towers`: one to three locations ordered by distance from the input centre, in metres.
 - `source`: `model`, `data`, or `demo`. Recorded-data mode uses `recorded` as its model name. Available regional model names can include `knn`, `random_forest`, `hybrid`, `physics_only`, and `xgboost_only`; demo uses `simulated`, version `demo-regional-v1`, simulated grid speeds, zero measured tiles, and explicit UI labels. Demo uses local tower locations when available, otherwise simulated towers; tower provenance is independent of simulated speed provenance.
 

@@ -1,7 +1,7 @@
 // The API supplies the same administrative polygon used for backend validation.
 export const HANOI_CENTER = [21.0285, 105.8542];
 export const HANOI_BOUNDS = [[20.5461, 105.3584], [21.4048, 106.0735]];
-export const HANOI_ONLY_MESSAGE = "This point is outside Hanoi. Choose a location inside the city boundary.";
+export const HANOI_ONLY_MESSAGE = "This point is outside Hanoi's 12-district study area. Choose a location inside the boundary.";
 
 function insideRing(ring, lat, lon) {
   let inside = false;

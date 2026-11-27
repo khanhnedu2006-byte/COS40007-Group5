@@ -32,7 +32,7 @@ If activation is unavailable, replace `python` in the following commands with `.
 python -m speedmap.cli.fetch_ookla_hanoi
 ```
 
-The script reads Ookla's public Parquet data through DuckDB and filters the Hanoi envelope. It writes `data/raw/ookla_hanoi_mobile.csv`. Exact administrative-boundary filtering happens during feature preparation.
+The script reads Ookla's public Parquet data through DuckDB and filters the Hanoi envelope. It writes `data/raw/ookla_hanoi_mobile.csv`. Exact 12-district study-area filtering happens during feature preparation.
 
 The script's default is **2024 Q4 through 2026 Q3**, not a rolling latest-quarter query. To select quarters explicitly:
 
@@ -62,7 +62,7 @@ Output: `data/raw/osm_comm_towers.csv`. The preparation step adds qualifying tel
 
 ## 5. Prepare towers, cells, and feature tables
 
-The repository already contains the Hanoi boundary and `data/reference/hanoi_context_grid.npz`; keep those reference files in place. With the raw observations and cells available:
+The repository already contains the 12-district study-area boundary and `data/reference/hanoi_context_grid.npz`; keep those reference files in place. With the raw observations and cells available:
 
 ```sh
 python -m speedmap.cli.run_pipeline --step towers
@@ -83,7 +83,7 @@ The feature step writes:
 
 Physics is skipped by default. The unused `theory_mbps` column remains empty and does not prevent baseline training. For the five-model comparison, install `requirements-model.txt`, rebuild features with `--step features --include-physics`, then run `--step hybrid`. `--step all` also builds the physics feature and runs that comparison; it additionally requires context inputs for the context step.
 
-The existing snapshot produced 2,398 towers, 3,317 cells, 5,212 pooled tiles, and 24,679 tile-quarter records. These are reference counts, not required values for a newer download. Preserve quadkeys as strings when loading CSVs.
+The 18 November 12-district rebuild produced 1,882 towers, 2,779 cells, 852 pooled tiles, and 6,232 tile-quarter records. These are reference counts, not required values for a newer download. Preserve quadkeys as strings when loading CSVs.
 
 ## Optional: refresh context layers
 

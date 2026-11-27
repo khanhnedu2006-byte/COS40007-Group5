@@ -11,8 +11,8 @@ from speedmap.inference.area import AreaSampler, area_estimate, weighted_log_mea
 TILES = pd.DataFrame(
     {
         "quadkey": [str(i) for i in range(8)],
-        "latitude": [21.0285 + 0.0005 * i for i in range(7)] + [21.30],
-        "longitude": [105.8542] * 7 + [105.60],
+        "latitude": [21.0285 + 0.0005 * i for i in range(7)] + [21.08],
+        "longitude": [105.8542] * 7 + [105.83],
         "tests": [10, 20, 5, 5, 5, 5, 5, 50],
         "download_mbps": [120, 80, 150, 90, 110, 130, 100, 20],
     }
@@ -26,11 +26,11 @@ def test_tiles_inside_radius_are_used_with_test_weights():
 
 
 def test_sparse_area_adds_grid_points():
-    pts = AreaSampler(TILES).points(21.30, 105.60)  # chỉ 1 ô Ookla trong vùng
+    pts = AreaSampler(TILES).points(21.08, 105.83)  # chỉ 1 ô Ookla trong vùng
     assert (pts["source"] == "grid").sum() == 9
     assert (
         np.hypot(
-            (pts.latitude - 21.30) * 110_570, (pts.longitude - 105.60) * 103_900
+            (pts.latitude - 21.08) * 110_570, (pts.longitude - 105.83) * 103_900
         ).max()
         <= config.AREA_RADIUS_M + 50
     )
@@ -83,7 +83,7 @@ def test_dense_and_empty_regions_report_actual_sampling_support():
     assert dense["area_points"] == dense["area_ookla_tiles"] == 7
     assert dense["area_grid_points"] == 0
     assert dense["area_quality_level"] == "Good"
-    empty = area_estimate(predict, Featurizer(), sampler, 20.8, 105.8)
+    empty = area_estimate(predict, Featurizer(), sampler, 21.05, 105.75)
     assert empty["area_ookla_tiles"] == 0
     assert empty["area_points"] == empty["area_grid_points"] > 0
 

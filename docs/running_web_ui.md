@@ -70,7 +70,7 @@ $env:SPEEDMAP_MODE = 'demo'
 python -m uvicorn speedmap.api.main:app --host 127.0.0.1 --port 8000
 ```
 
-To switch modes, stop the API, set `SPEEDMAP_MODE` to a value described in [Choose the operating mode](#choose-the-operating-mode), and start the API again. For example, use `SPEEDMAP_MODE=data python -m uvicorn speedmap.api.main:app --host 127.0.0.1 --port 8000` on Linux/macOS, or set `$env:SPEEDMAP_MODE = 'data'` in PowerShell before running the Uvicorn command. If `SPEEDMAP_MODE` is unset, manual startup defaults to `actual`. A PowerShell assignment persists in that shell; use `Remove-Item Env:SPEEDMAP_MODE` to restore the default.
+To switch modes, stop the API, set `SPEEDMAP_MODE` to a  value described in [Choose the operating mode](#choose-the-operating-mode), and start the API again. For example, use `SPEEDMAP_MODE=data python -m uvicorn speedmap.api.main:app --host 127.0.0.1 --port 8000` on Linux/macOS, or set `$env:SPEEDMAP_MODE = 'data'` in PowerShell before running the Uvicorn command. If `SPEEDMAP_MODE` is unset, manual startup defaults to `actual`. A PowerShell assignment persists in that shell; use `Remove-Item Env:SPEEDMAP_MODE` to restore the default.
 
 Set `SPEEDMAP_ROOT` before starting the launcher or API to use a different data/artifact root with the same `data/` and `artifacts/` layout, including `data/reference/`. Unset it to use the repository root. The provided Compose configuration does not forward this variable.
 

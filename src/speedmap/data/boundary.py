@@ -1,6 +1,6 @@
-"""Hanoi administrative boundary: point-in-polygon and distance to the border.   Owner: Person 1
+"""Historical Hanoi inner-city study area: point-in-polygon and distance to the border.
 
-Polygon: data/reference/hanoi_boundary.geojson (geoBoundaries gbOpen, CC BY 4.0).
+Polygon: data/reference/hanoi_inner_boundary.geojson (geoBoundaries, CC BY 3.0 IGO).
 Used by data cleaning (keep tiles inside Hanoi), tower filtering (keep towers inside Hanoi
 or within config.TOWER_BUFFER_KM of the border) and the backend (reject clicks outside Hanoi).
 """
@@ -59,6 +59,14 @@ def contains(lat, lon) -> np.ndarray:
     for path in _paths():
         inside ^= path.contains_points(pts)
     return inside
+
+
+def require_study_area(table) -> None:
+    """Reject stale training data prepared for the wider Hanoi boundary."""
+    if not contains(table["latitude"], table["longitude"]).all():
+        raise ValueError(
+            "Training rows outside the 12-district study area; rebuild features."
+        )
 
 
 def distance_to_border_m(lat, lon) -> np.ndarray:

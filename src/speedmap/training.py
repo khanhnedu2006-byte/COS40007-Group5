@@ -11,6 +11,7 @@ from speedmap import config
 from speedmap.artifacts import save_model
 from speedmap.evaluation.cv import BASELINES, REGIONAL_MODELS, evaluate_baselines
 from speedmap.features.build import validate_training_table
+from speedmap.data.boundary import require_study_area
 
 
 def train_baselines():
@@ -26,6 +27,7 @@ def train_regional():
 def _train(factories, include_physics):
     tiles = pd.read_csv(config.TILES_FILE, dtype={"quadkey": str})
     validate_training_table(tiles, include_physics=include_physics)
+    require_study_area(tiles)
     if include_physics and (
         not np.isfinite(tiles["theory_mbps"].to_numpy(dtype=float)).all()
         or (tiles["theory_mbps"] < 0).any()

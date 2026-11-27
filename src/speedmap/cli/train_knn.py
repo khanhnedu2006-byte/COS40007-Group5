@@ -85,6 +85,9 @@ def evaluate_knn(
 def main() -> None:
     """Evaluate KNN, print metrics, and save the report and final model."""
     data = pd.read_csv(config.TRAIN_FILE, dtype={"quadkey": str})
+    from speedmap.data.boundary import require_study_area
+
+    require_study_area(data)
     results = evaluate_knn(data)
 
     config.ARTIFACTS_REPORTS.mkdir(parents=True, exist_ok=True)
